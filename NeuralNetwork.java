@@ -429,7 +429,7 @@ public class NeuralNetwork {
             String trainImagesPath = "data/train-images.idx3-ubyte";
             String trainLabelsPath = "data/train-labels.idx1-ubyte";
     
-            int numTrainingExamples = 6000;
+            int numTrainingExamples = 12000;
     
             Map<String, double[][]> data = loadMNIST(trainImagesPath, trainLabelsPath, numTrainingExamples);
             double[][] X = data.get("X");
