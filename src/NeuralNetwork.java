@@ -1,11 +1,11 @@
+package src;
+
 import java.io.*;
 import java.util.*;
-import java.nio.ByteBuffer;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.image.BufferedImage;
+import static src.Utilities.*;
 
 public class NeuralNetwork {
 
@@ -95,7 +95,7 @@ public class NeuralNetwork {
             double[][] Wl = parameters.get(W);
             double[][] bl = parameters.get(b);
 
-            double[][] Z = MatrixUtilities.addVectors(MatrixUtilities.multiplyMatrices(Wl, A_prev), bl);
+            double[][] Z = addVectors(multiplyMatrices(Wl, A_prev), bl);
             cache.put("Z" + l, Z);
 
             double[][] A;
@@ -152,7 +152,7 @@ public class NeuralNetwork {
 
     private double[][] sigmoidDerivative(double[][] Z) {
         double[][] S = sigmoid(Z);
-        return MatrixUtilities.multiplyElementWise(S, MatrixUtilities.subtractScalar(S, 1.0));
+        return multiplyElementWise(S, subtractScalar(S, 1.0));
     }
 
     private double[][] relu(double[][] Z) {
@@ -193,7 +193,7 @@ public class NeuralNetwork {
 
     private double[][] tanhDerivative(double[][] Z) {
         double[][] A = tanh(Z);
-        return MatrixUtilities.subtractScalar(MatrixUtilities.multiplyElementWise(A, A), 1.0);
+        return subtractScalar(multiplyElementWise(A, A), 1.0);
     }
 
     private double[][] softmax(double[][] Z) {
@@ -231,32 +231,32 @@ public class NeuralNetwork {
         double[][] dA_prev = null;
 
         double[][] A_L = cache.get("A" + L);
-        double[][] dZ_L = MatrixUtilities.subtractMatrices(A_L, Y);
+        double[][] dZ_L = subtractMatrices(A_L, Y);
         gradients.put("dZ" + L, dZ_L);
         double[][] A_prev_L = cache.get("A" + (L - 1));
-        double[][] dW_L = MatrixUtilities.scalarMultiply(MatrixUtilities.multiplyMatrices(dZ_L, MatrixUtilities.transpose(A_prev_L)), 1.0 / m);
-        double[][] db_L = MatrixUtilities.scalarMultiply(MatrixUtilities.sumColumns(dZ_L), 1.0 / m);
+        double[][] dW_L = scalarMultiply(multiplyMatrices(dZ_L, transpose(A_prev_L)), 1.0 / m);
+        double[][] db_L = scalarMultiply(sumColumns(dZ_L), 1.0 / m);
         gradients.put("dW" + L, dW_L);
         gradients.put("db" + L, db_L);
 
-        dA_prev = MatrixUtilities.multiplyMatrices(MatrixUtilities.transpose(parameters.get("W" + L)), dZ_L);
+        dA_prev = multiplyMatrices(transpose(parameters.get("W" + L)), dZ_L);
 
         for (int l = L - 1; l >= 1; l--) {
             @SuppressWarnings("unused")
             String Wl_plus1 = "W" + (l + 1);
             double[][] Zl = cache.get("Z" + l);
-            double[][] dZl = MatrixUtilities.multiplyElementWise(dA_prev, activationDerivative(Zl));
+            double[][] dZl = multiplyElementWise(dA_prev, activationDerivative(Zl));
             gradients.put("dZ" + l, dZl);
 
             double[][] A_prev_l = cache.get("A" + (l - 1));
-            double[][] dWl = MatrixUtilities.scalarMultiply(MatrixUtilities.multiplyMatrices(dZl, MatrixUtilities.transpose(A_prev_l)), 1.0 / m);
-            double[][] dbl = MatrixUtilities.scalarMultiply(MatrixUtilities.sumColumns(dZl), 1.0 / m);
+            double[][] dWl = scalarMultiply(multiplyMatrices(dZl, transpose(A_prev_l)), 1.0 / m);
+            double[][] dbl = scalarMultiply(sumColumns(dZl), 1.0 / m);
 
             gradients.put("dW" + l, dWl);
             gradients.put("db" + l, dbl);
 
             if (l > 1) {
-                dA_prev = MatrixUtilities.multiplyMatrices(MatrixUtilities.transpose(parameters.get("W" + l)), dZl);
+                dA_prev = multiplyMatrices(transpose(parameters.get("W" + l)), dZl);
             }
         }
 
@@ -270,14 +270,14 @@ public class NeuralNetwork {
             double[][] m = adamCache.get("m" + key);
             double[][] v = adamCache.get("v" + key);
 
-            m = MatrixUtilities.addMatrices(MatrixUtilities.scalarMultiply(m, beta1), MatrixUtilities.scalarMultiply(dtheta, 1 - beta1));
-            v = MatrixUtilities.addMatrices(MatrixUtilities.scalarMultiply(v, beta2), MatrixUtilities.scalarMultiply(MatrixUtilities.squareMatrix(dtheta), 1 - beta2));
+            m = addMatrices(scalarMultiply(m, beta1), scalarMultiply(dtheta, 1 - beta1));
+            v = addMatrices(scalarMultiply(v, beta2), scalarMultiply(squareMatrix(dtheta), 1 - beta2));
 
-            double[][] m_hat = MatrixUtilities.scalarDivide(m, (1 - Math.pow(beta1, t)));
-            double[][] v_hat = MatrixUtilities.scalarDivide(v, (1 - Math.pow(beta2, t)));
+            double[][] m_hat = scalarDivide(m, (1 - Math.pow(beta1, t)));
+            double[][] v_hat = scalarDivide(v, (1 - Math.pow(beta2, t)));
 
-            double[][] update = MatrixUtilities.scalarMultiply(MatrixUtilities.elementWiseDivide(m_hat, MatrixUtilities.addScalar(MatrixUtilities.sqrtMatrix(v_hat), epsilon)), learningRate);
-            theta = MatrixUtilities.subtractMatrices(theta, update);
+            double[][] update = scalarMultiply(elementWiseDivide(m_hat, addScalar(sqrtMatrix(v_hat), epsilon)), learningRate);
+            theta = subtractMatrices(theta, update);
 
             parameters.put(key, theta);
             adamCache.put("m" + key, m);
@@ -301,31 +301,41 @@ public class NeuralNetwork {
     public void train(double[][] X, double[][] Y) {
         int m = X[0].length;
         int t = 0;
-
+    
+        MetricsVisualizer visualizer = new MetricsVisualizer(epochs);
+        visualizer.setVisible(true);
+    
         for (int epoch = 0; epoch < epochs; epoch++) {
-            int[] permutation = MatrixUtilities.getRandomPermutation(m);
-            double[][] X_shuffled = MatrixUtilities.shuffleColumns(X, permutation);
-            double[][] Y_shuffled = MatrixUtilities.shuffleColumns(Y, permutation);
-
+            int[] permutation = getRandomPermutation(m);
+            double[][] X_shuffled = shuffleColumns(X, permutation);
+            double[][] Y_shuffled = shuffleColumns(Y, permutation);
+    
+            double totalLoss = 0.0;
+    
             for (int i = 0; i < m; i += batchSize) {
                 t++;
-
                 int end = Math.min(i + batchSize, m);
-                double[][] X_batch = MatrixUtilities.getBatch(X_shuffled, i, end);
-                double[][] Y_batch = MatrixUtilities.getBatch(Y_shuffled, i, end);
-
+                double[][] X_batch = getBatch(X_shuffled, i, end);
+                double[][] Y_batch = getBatch(Y_shuffled, i, end);
+    
                 Map<String, double[][]> cache = forwardPropagation(X_batch);
                 double cost = computeCost(cache.get("A" + (hiddenSizes.length + 1)), Y_batch);
                 Map<String, double[][]> gradients = backwardPropagation(X_batch, Y_batch, cache);
-
                 updateParameters(gradients, t);
-                if (i%100==0) {
-                    System.out.println("cost: "+ cost);
-                }
+    
+                totalLoss += cost;
             }
-            System.out.println("Epoch " + (epoch + 1) + "/" + epochs + " completed.");
+    
+            double epochLoss = totalLoss / (m / batchSize);
+            int[] predictions = predict(X);
+            int[] labels = convertOneHotToLabels(Y);
+            double accuracy = computeAccuracy(predictions, labels);
+    
+            System.out.println("Epoch " + (epoch + 1) + ": Loss = " + epochLoss + ", Accuracy = " + accuracy);
+            visualizer.logMetrics(epochLoss, accuracy);
         }
     }
+    
     public void displayImageAndPrediction(double[] image, int prediction) {
         int width = 28;
         int height = 28;
@@ -387,50 +397,13 @@ public class NeuralNetwork {
         return ((double) correct) / predictions.length;
     }
 
-    public static Map<String, double[][]> loadMNIST(String imagesPath, String labelsPath, int numData) throws IOException {
-        byte[] imageBytes = Files.readAllBytes(Paths.get(imagesPath));
-        ByteBuffer imageBuffer = ByteBuffer.wrap(imageBytes);
-        byte[] labelBytes = Files.readAllBytes(Paths.get(labelsPath));
-        ByteBuffer labelBuffer = ByteBuffer.wrap(labelBytes);
-
-        imageBuffer.getInt(); // Magic number
-        int numImages = imageBuffer.getInt();
-        int numRows = imageBuffer.getInt();
-        int numCols = imageBuffer.getInt();
-
-        labelBuffer.getInt(); // Magic number
-        @SuppressWarnings("unused")
-        int numLabels = labelBuffer.getInt();
-
-        int totalData = Math.min(numData, numImages);
-        double[][] X = new double[numRows * numCols][totalData];
-        double[][] Y = new double[10][totalData];
-
-        for (int i = 0; i < totalData; i++) {
-            for (int j = 0; j < numRows * numCols; j++) {
-                int pixel = imageBuffer.get() & 0xFF;
-                X[j][i] = pixel / 255.0;
-            }
-            int label = labelBuffer.get() & 0xFF;
-            for (int k = 0; k < 10; k++) {
-                Y[k][i] = (k == label) ? 1.0 : 0.0;
-            }
-        }
-
-        Map<String, double[][]> data = new HashMap<>();
-        data.put("X", X);
-        data.put("Y", Y);
-
-        return data;
-    }
-
     public static void main(String[] args) {
         try {
             String trainImagesPath = "data/train-images.idx3-ubyte";
             String trainLabelsPath = "data/train-labels.idx1-ubyte";
     
             int numTrainingExamples = 12000;
-    
+
             Map<String, double[][]> data = loadMNIST(trainImagesPath, trainLabelsPath, numTrainingExamples);
             double[][] X = data.get("X");
             double[][] Y = data.get("Y");
@@ -444,7 +417,7 @@ public class NeuralNetwork {
             double[][] X_test = new double[X.length][numTest];
             double[][] Y_test = new double[Y.length][numTest];
     
-            int[] indices = MatrixUtilities.getRandomPermutation(numTrainingExamples);
+            int[] indices = getRandomPermutation(numTrainingExamples);
     
             for (int i = 0; i < numTrain; i++) {
                 for (int j = 0; j < X.length; j++) {
@@ -471,7 +444,7 @@ public class NeuralNetwork {
             int[] hiddenSizes = {128, 64, 64, 32};
             int outputSize = 10;
             double learningRate = 0.001;
-            int epochs = 3;
+            int epochs = 100;
             int batchSize = 64;
     
             NeuralNetwork nn = new NeuralNetwork(inputSize, hiddenSizes, outputSize, learningRate, epochs, batchSize, ActivationFunction.RELU);
@@ -480,16 +453,18 @@ public class NeuralNetwork {
             System.out.println("Training completed.");
     
             int[] trainPredictions = nn.predict(X_train);
-            int[] trainLabels = MatrixUtilities.convertOneHotToLabels(Y_train);
+            int[] trainLabels = convertOneHotToLabels(Y_train);
             double trainAccuracy = nn.computeAccuracy(trainPredictions, trainLabels);
             System.out.println("Training accuracy: " + trainAccuracy);
     
             int[] testPredictions = nn.predict(X_test);
-            int[] testLabels = MatrixUtilities.convertOneHotToLabels(Y_test);
+            int[] testLabels = convertOneHotToLabels(Y_test);
             double testAccuracy = nn.computeAccuracy(testPredictions, testLabels);
             System.out.println("Test accuracy: " + testAccuracy);
+            int[][] confusionMatrix = computeConfusionMatrix(testPredictions, testLabels, outputSize);
+            MetricsVisualizer.displayConfusionMatrix(confusionMatrix, new String[]{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"});
 
-            for (int i = 0; i <= 100 && i < trainPredictions.length; i++) {
+            for (int i = 0; i <= 5 && i < trainPredictions.length; i++) {
                 double[] image = new double[inputSize];
                 for (int j = 0; j < inputSize; j++) {
                     image[j] = X_train[j][i];

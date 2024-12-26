@@ -1,6 +1,20 @@
+package src;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 
-public class MatrixUtilities {
+public class Utilities {
+    public static int[][] computeConfusionMatrix(int[] predictions, int[] labels, int numClasses) {
+        int[][] matrix = new int[numClasses][numClasses];
+        for (int i = 0; i < predictions.length; i++) {
+            matrix[labels[i]][predictions[i]]++;
+        }
+        return matrix;
+    }
     
     public static double[][] multiplyMatrices(double[][] A, double[][] B) {
         int rows = A.length;
@@ -246,5 +260,41 @@ public class MatrixUtilities {
             }
         }
         return labels;
+    }
+    public static Map<String, double[][]> loadMNIST(String imagesPath, String labelsPath, int numData) throws IOException {
+        byte[] imageBytes = Files.readAllBytes(Paths.get(imagesPath));
+        ByteBuffer imageBuffer = ByteBuffer.wrap(imageBytes);
+        byte[] labelBytes = Files.readAllBytes(Paths.get(labelsPath));
+        ByteBuffer labelBuffer = ByteBuffer.wrap(labelBytes);
+
+        imageBuffer.getInt(); // Magic number
+        int numImages = imageBuffer.getInt();
+        int numRows = imageBuffer.getInt();
+        int numCols = imageBuffer.getInt();
+
+        labelBuffer.getInt(); // Magic number
+        @SuppressWarnings("unused")
+        int numLabels = labelBuffer.getInt();
+
+        int totalData = Math.min(numData, numImages);
+        double[][] X = new double[numRows * numCols][totalData];
+        double[][] Y = new double[10][totalData];
+
+        for (int i = 0; i < totalData; i++) {
+            for (int j = 0; j < numRows * numCols; j++) {
+                int pixel = imageBuffer.get() & 0xFF;
+                X[j][i] = pixel / 255.0;
+            }
+            int label = labelBuffer.get() & 0xFF;
+            for (int k = 0; k < 10; k++) {
+                Y[k][i] = (k == label) ? 1.0 : 0.0;
+            }
+        }
+
+        Map<String, double[][]> data = new HashMap<>();
+        data.put("X", X);
+        data.put("Y", Y);
+
+        return data;
     }
 }

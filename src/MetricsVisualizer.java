@@ -1,0 +1,108 @@
+package src;
+
+import javax.swing.*;
+import java.awt.*;
+import java.util.ArrayList;
+import java.util.List;
+
+public class MetricsVisualizer extends JFrame {
+    private List<Double> losses = new ArrayList<>();
+    private List<Double> accuracies = new ArrayList<>();
+    private int epochs;
+
+    public MetricsVisualizer(int epochs) {
+        this.epochs = epochs;
+        setTitle("Training Metrics");
+        setSize(800, 600);
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+    }
+
+    public void logMetrics(double loss, double accuracy) {
+        losses.add(loss);
+        accuracies.add(accuracy);
+        repaint();
+    }
+
+    @Override
+    public void paint(Graphics g) {
+        super.paint(g);
+        Graphics2D g2d = (Graphics2D) g;
+
+        // Draw axes
+        g2d.drawLine(50, 50, 50, 550); // Y-axis
+        g2d.drawLine(50, 550, 750, 550); // X-axis
+
+        // Draw labels
+        g2d.drawString("Epochs", 375, 580);
+        g2d.drawString("Loss / Accuracy", 10, 300);
+
+        // Draw curves only if data is available
+        if (!losses.isEmpty()) {
+            g2d.setColor(Color.RED);
+            drawCurve(g2d, losses, 50, 550, "Loss");
+        }
+
+        if (!accuracies.isEmpty()) {
+            g2d.setColor(Color.BLUE);
+            drawCurve(g2d, accuracies, 50, 550, "Accuracy");
+        }
+    }
+
+    private void drawCurve(Graphics2D g2d, List<Double> data, int xStart, int yStart, String label) {
+        if (data.size() < 2) {
+            return; // Not enough data points to draw a curve
+        }
+
+        int xStep = (700 / epochs);
+        double maxValue = data.stream().mapToDouble(Double::doubleValue).max().orElse(1.0);
+
+        for (int i = 1; i < data.size(); i++) {
+            int x1 = xStart + (i - 1) * xStep;
+            int y1 = (int) (yStart - (data.get(i - 1) / maxValue) * 500);
+            int x2 = xStart + i * xStep;
+            int y2 = (int) (yStart - (data.get(i) / maxValue) * 500);
+            g2d.drawLine(x1, y1, x2, y2);
+        }
+
+        // Label the last data point
+        int lastX = xStart + (data.size() - 1) * xStep;
+        int lastY = (int) (yStart - (data.get(data.size() - 1) / maxValue) * 500);
+        g2d.drawString(label, lastX, lastY);
+    }
+
+
+    public static void displayConfusionMatrix(int[][] confusionMatrix, String[] labels) {
+        JFrame frame = new JFrame("Confusion Matrix");
+        frame.setSize(400, 400);
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+        JPanel panel = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                Graphics2D g2d = (Graphics2D) g;
+
+                int cellSize = 50;
+                for (int i = 0; i < confusionMatrix.length; i++) {
+                    for (int j = 0; j < confusionMatrix[0].length; j++) {
+                        int value = confusionMatrix[i][j];
+                        g2d.setColor(Color.WHITE);
+                        g2d.fillRect(j * cellSize, i * cellSize, cellSize, cellSize);
+                        g2d.setColor(Color.BLACK);
+                        g2d.drawRect(j * cellSize, i * cellSize, cellSize, cellSize);
+                        g2d.drawString(String.valueOf(value), j * cellSize + cellSize / 4, i * cellSize + cellSize / 2);
+                    }
+                }
+
+                if (labels != null) {
+                    for (int i = 0; i < labels.length; i++) {
+                        g2d.drawString(labels[i], i * cellSize + cellSize / 2, confusionMatrix.length * cellSize + 20);
+                        g2d.drawString(labels[i], confusionMatrix.length * cellSize + 20, i * cellSize + cellSize / 2);
+                    }
+                }
+            }
+        };
+        frame.add(panel);
+        frame.setVisible(true);
+    }
+}
