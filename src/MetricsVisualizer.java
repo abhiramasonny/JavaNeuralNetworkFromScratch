@@ -36,7 +36,6 @@ public class MetricsVisualizer extends JFrame {
         g2d.drawString("Epochs", 375, 580);
         g2d.drawString("Loss / Accuracy", 10, 300);
 
-        // Draw curves only if data is available
         if (!losses.isEmpty()) {
             g2d.setColor(Color.RED);
             drawCurve(g2d, losses, 50, 550, "Loss");
@@ -50,7 +49,7 @@ public class MetricsVisualizer extends JFrame {
 
     private void drawCurve(Graphics2D g2d, List<Double> data, int xStart, int yStart, String label) {
         if (data.size() < 2) {
-            return; // Not enough data points to draw a curve
+            return;
         }
 
         int xStep = (700 / epochs);

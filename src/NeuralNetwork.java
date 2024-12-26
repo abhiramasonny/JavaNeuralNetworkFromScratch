@@ -37,10 +37,10 @@ public class NeuralNetwork {
         this.batchSize = batchSize;
         this.activationFunction = activationFunction;
 
-        initializeParameters();
+        init();
     }
 
-    private void initializeParameters() {
+    private void init() {
         @SuppressWarnings("unused")
         int layers = hiddenSizes.length + 1;
         int[] layerSizes = new int[hiddenSizes.length + 2];
@@ -81,7 +81,7 @@ public class NeuralNetwork {
         }
     }
 
-    public Map<String, double[][]> forwardPropagation(double[][] X) {
+    public Map<String, double[][]> forwardProp(double[][] X) {
         Map<String, double[][]> cache = new HashMap<>();
         double[][] A_prev = X;
         cache.put("A0", A_prev);
@@ -223,7 +223,7 @@ public class NeuralNetwork {
         return A;
     }
 
-    public Map<String, double[][]> backwardPropagation(double[][] X, double[][] Y, Map<String, double[][]> cache) {
+    public Map<String, double[][]> backProp(double[][] X, double[][] Y, Map<String, double[][]> cache) {
         Map<String, double[][]> gradients = new HashMap<>();
         int m = X[0].length;
         int L = hiddenSizes.length + 1;
@@ -318,9 +318,9 @@ public class NeuralNetwork {
                 double[][] X_batch = getBatch(X_shuffled, i, end);
                 double[][] Y_batch = getBatch(Y_shuffled, i, end);
     
-                Map<String, double[][]> cache = forwardPropagation(X_batch);
+                Map<String, double[][]> cache = forwardProp(X_batch);
                 double cost = computeCost(cache.get("A" + (hiddenSizes.length + 1)), Y_batch);
-                Map<String, double[][]> gradients = backwardPropagation(X_batch, Y_batch, cache);
+                Map<String, double[][]> gradients = backProp(X_batch, Y_batch, cache);
                 updateParameters(gradients, t);
     
                 totalLoss += cost;
@@ -336,7 +336,7 @@ public class NeuralNetwork {
         }
     }
     
-    public void displayImageAndPrediction(double[] image, int prediction) {
+    public JFrame displayImg(double[] image, int prediction) {
         int width = 28;
         int height = 28;
         int scale = 10; // Scale factor to make each pixel bigger
@@ -365,10 +365,11 @@ public class NeuralNetwork {
         frame.add(predictionLabel, BorderLayout.SOUTH);
     
         frame.setVisible(true);
+        return frame;
     }
 
     public int[] predict(double[][] X) {
-        Map<String, double[][]> cache = forwardPropagation(X);
+        Map<String, double[][]> cache = forwardProp(X);
         double[][] A_final = cache.get("A" + (hiddenSizes.length + 1));
         int m = A_final[0].length;
         int[] predictions = new int[m];
@@ -444,8 +445,8 @@ public class NeuralNetwork {
             int[] hiddenSizes = {128, 64, 64, 32};
             int outputSize = 10;
             double learningRate = 0.001;
-            int epochs = 100;
-            int batchSize = 64;
+            int epochs = 3;
+            int batchSize = 32;
     
             NeuralNetwork nn = new NeuralNetwork(inputSize, hiddenSizes, outputSize, learningRate, epochs, batchSize, ActivationFunction.RELU);
             System.out.println("Starting training...");
@@ -464,15 +465,16 @@ public class NeuralNetwork {
             int[][] confusionMatrix = computeConfusionMatrix(testPredictions, testLabels, outputSize);
             MetricsVisualizer.displayConfusionMatrix(confusionMatrix, new String[]{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"});
 
-            for (int i = 0; i <= 5 && i < trainPredictions.length; i++) {
+            for (int i = 0; i <= 100 && i < trainPredictions.length; i++) {
                 double[] image = new double[inputSize];
                 for (int j = 0; j < inputSize; j++) {
                     image[j] = X_train[j][i];
                 }
                 int firstPrediction = trainPredictions[i];
-                nn.displayImageAndPrediction(image, firstPrediction);
+                JFrame displayed = nn.displayImg(image, firstPrediction);
                 try {
                     Thread.sleep(1000);
+                    displayed.dispose();
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
