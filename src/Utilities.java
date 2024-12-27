@@ -6,8 +6,32 @@ import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
+import static src.NeuralNetwork.*;
 
 public class Utilities {
+
+    public static double computeCost(double[][] Y_hat, double[][] Y) {
+        int m = Y[0].length;
+        double cost = 0.0;
+
+        for (int i = 0; i < Y.length; i++) {
+            for (int j = 0; j < m; j++) {
+                cost -= Y[i][j] * Math.log(Y_hat[i][j] + epsilon);
+            }
+        }
+        cost /= m;
+        return cost;
+    }
+    public static double computeAccuracy(int[] predictions, int[] labels) {
+        int correct = 0;
+        for (int i = 0; i < predictions.length; i++) {
+            if (predictions[i] == labels[i]) {
+                correct++;
+            }
+        }
+        return ((double) correct) / predictions.length;
+    }
+
     public static int[][] computeConfusionMatrix(int[] predictions, int[] labels, int numClasses) {
         int[][] matrix = new int[numClasses][numClasses];
         for (int i = 0; i < predictions.length; i++) {

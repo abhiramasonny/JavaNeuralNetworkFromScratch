@@ -1,11 +1,43 @@
 package src;
 
+import java.awt.image.BufferedImage;
 import javax.swing.*;
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 
 public class MetricsVisualizer extends JFrame {
+    public static JFrame displayImg(double[] image, int prediction) {
+        int width = 28;
+        int height = 28;
+        int scale = 10; // Scale factor to make each pixel bigger
+        BufferedImage bufferedImage = new BufferedImage(width * scale, height * scale, BufferedImage.TYPE_BYTE_GRAY);
+    
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                int pixelValue = (int) (image[y * width + x] * 255);
+                for (int dy = 0; dy < scale; dy++) {
+                    for (int dx = 0; dx < scale; dx++) {
+                        bufferedImage.setRGB(x * scale + dx, y * scale + dy, new Color(pixelValue, pixelValue, pixelValue).getRGB());
+                    }
+                }
+            }
+        }
+    
+        JFrame frame = new JFrame();
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setSize(300, 300);
+        frame.setLayout(new BorderLayout());
+    
+        JLabel imageLabel = new JLabel(new ImageIcon(bufferedImage));
+        frame.add(imageLabel, BorderLayout.CENTER);
+    
+        JLabel predictionLabel = new JLabel("Prediction: " + prediction);
+        frame.add(predictionLabel, BorderLayout.SOUTH);
+    
+        frame.setVisible(true);
+        return frame;
+    }
     private List<Double> losses = new ArrayList<>();
     private List<Double> accuracies = new ArrayList<>();
     private int epochs;

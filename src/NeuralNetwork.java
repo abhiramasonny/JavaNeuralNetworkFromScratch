@@ -3,8 +3,6 @@ package src;
 import java.io.*;
 import java.util.*;
 import javax.swing.*;
-import java.awt.*;
-import java.awt.image.BufferedImage;
 import static src.Utilities.*;
 
 public class NeuralNetwork {
@@ -22,9 +20,9 @@ public class NeuralNetwork {
     private Map<String, double[][]> adamCache = new HashMap<>();
 
     // Hyperparameters for ADAM optimization
-    private double beta1 = 0.9;
-    private double beta2 = 0.999;
-    private double epsilon = 1e-8;
+    public static double beta1 = 0.9;
+    public static double beta2 = 0.999;
+    public static double epsilon = 1e-8;
 
     public enum ActivationFunction {SIGMOID, RELU, TANH}
 
@@ -285,19 +283,6 @@ public class NeuralNetwork {
         }
     }
 
-    public double computeCost(double[][] Y_hat, double[][] Y) {
-        int m = Y[0].length;
-        double cost = 0.0;
-
-        for (int i = 0; i < Y.length; i++) {
-            for (int j = 0; j < m; j++) {
-                cost -= Y[i][j] * Math.log(Y_hat[i][j] + epsilon);
-            }
-        }
-        cost /= m;
-        return cost;
-    }
-
     public void train(double[][] X, double[][] Y) {
         int m = X[0].length;
         int t = 0;
@@ -335,38 +320,6 @@ public class NeuralNetwork {
             visualizer.logMetrics(epochLoss, accuracy);
         }
     }
-    
-    public JFrame displayImg(double[] image, int prediction) {
-        int width = 28;
-        int height = 28;
-        int scale = 10; // Scale factor to make each pixel bigger
-        BufferedImage bufferedImage = new BufferedImage(width * scale, height * scale, BufferedImage.TYPE_BYTE_GRAY);
-    
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                int pixelValue = (int) (image[y * width + x] * 255);
-                for (int dy = 0; dy < scale; dy++) {
-                    for (int dx = 0; dx < scale; dx++) {
-                        bufferedImage.setRGB(x * scale + dx, y * scale + dy, new Color(pixelValue, pixelValue, pixelValue).getRGB());
-                    }
-                }
-            }
-        }
-    
-        JFrame frame = new JFrame();
-        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-        frame.setSize(300, 300);
-        frame.setLayout(new BorderLayout());
-    
-        JLabel imageLabel = new JLabel(new ImageIcon(bufferedImage));
-        frame.add(imageLabel, BorderLayout.CENTER);
-    
-        JLabel predictionLabel = new JLabel("Prediction: " + prediction);
-        frame.add(predictionLabel, BorderLayout.SOUTH);
-    
-        frame.setVisible(true);
-        return frame;
-    }
 
     public int[] predict(double[][] X) {
         Map<String, double[][]> cache = forwardProp(X);
@@ -388,100 +341,62 @@ public class NeuralNetwork {
         return predictions;
     }
 
-    public double computeAccuracy(int[] predictions, int[] labels) {
-        int correct = 0;
-        for (int i = 0; i < predictions.length; i++) {
-            if (predictions[i] == labels[i]) {
-                correct++;
-            }
-        }
-        return ((double) correct) / predictions.length;
-    }
-
     public static void main(String[] args) {
         try {
             String trainImagesPath = "data/train-images.idx3-ubyte";
             String trainLabelsPath = "data/train-labels.idx1-ubyte";
+            int numTrainingExamples = 12000, inputSize = 28 * 28, outputSize = 10, epochs = 3, batchSize = 32;
+            double splitRatio = 0.8, learningRate = 0.001;
+            int numTrain = (int) (numTrainingExamples * splitRatio), numTest = numTrainingExamples - numTrain;
+            int[] hiddenSizes = {128, 64, 64, 32};
+            ActivationFunction func = ActivationFunction.RELU;
     
-            int numTrainingExamples = 12000;
-
             Map<String, double[][]> data = loadMNIST(trainImagesPath, trainLabelsPath, numTrainingExamples);
-            double[][] X = data.get("X");
-            double[][] Y = data.get("Y");
-            
-            double splitRatio = 0.8;
-            int numTrain = (int) (numTrainingExamples * splitRatio);
-            int numTest = numTrainingExamples - numTrain;
-    
-            double[][] X_train = new double[X.length][numTrain];
-            double[][] Y_train = new double[Y.length][numTrain];
-            double[][] X_test = new double[X.length][numTest];
-            double[][] Y_test = new double[Y.length][numTest];
-    
+            double[][] X = data.get("X"), Y = data.get("Y");
+            double[][] X_train = new double[X.length][numTrain], Y_train = new double[Y.length][numTrain];
+            double[][] X_test = new double[X.length][numTest], Y_test = new double[Y.length][numTest];
             int[] indices = getRandomPermutation(numTrainingExamples);
     
-            for (int i = 0; i < numTrain; i++) {
-                for (int j = 0; j < X.length; j++) {
-                    X_train[j][i] = X[j][indices[i]];
-                }
-                for (int j = 0; j < Y.length; j++) {
-                    Y_train[j][i] = Y[j][indices[i]];
-                }
+            for (int i = 0; i < numTrainingExamples; i++) {
+                double[][] X_target = i < numTrain ? X_train : X_test, Y_target = i < numTrain ? Y_train : Y_test;
+                int targetIndex = i < numTrain ? i : i - numTrain;
+                for (int j = 0; j < X.length; j++) X_target[j][targetIndex] = X[j][indices[i]];
+                for (int j = 0; j < Y.length; j++) Y_target[j][targetIndex] = Y[j][indices[i]];
             }
     
-            for (int i = numTrain; i < numTrainingExamples; i++) {
-                for (int j = 0; j < X.length; j++) {
-                    X_test[j][i - numTrain] = X[j][indices[i]];
-                }
-                for (int j = 0; j < Y.length; j++) {
-                    Y_test[j][i - numTrain] = Y[j][indices[i]];
-                }
-            }
-    
-            System.out.println("Loaded and split the data.");
-    
-            // Network parameters
-            int inputSize = 28 * 28;
-            int[] hiddenSizes = {128, 64, 64, 32};
-            int outputSize = 10;
-            double learningRate = 0.001;
-            int epochs = 3;
-            int batchSize = 32;
-    
-            NeuralNetwork nn = new NeuralNetwork(inputSize, hiddenSizes, outputSize, learningRate, epochs, batchSize, ActivationFunction.RELU);
+            NeuralNetwork nn = new NeuralNetwork(inputSize, hiddenSizes, outputSize, learningRate, epochs, batchSize, func);
             System.out.println("Starting training...");
             nn.train(X_train, Y_train);
             System.out.println("Training completed.");
     
             int[] trainPredictions = nn.predict(X_train);
             int[] trainLabels = convertOneHotToLabels(Y_train);
-            double trainAccuracy = nn.computeAccuracy(trainPredictions, trainLabels);
+            double trainAccuracy = computeAccuracy(trainPredictions, trainLabels);
             System.out.println("Training accuracy: " + trainAccuracy);
     
             int[] testPredictions = nn.predict(X_test);
             int[] testLabels = convertOneHotToLabels(Y_test);
-            double testAccuracy = nn.computeAccuracy(testPredictions, testLabels);
+            double testAccuracy = computeAccuracy(testPredictions, testLabels);
             System.out.println("Test accuracy: " + testAccuracy);
             int[][] confusionMatrix = computeConfusionMatrix(testPredictions, testLabels, outputSize);
             MetricsVisualizer.displayConfusionMatrix(confusionMatrix, new String[]{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"});
-
+    
             for (int i = 0; i <= 100 && i < trainPredictions.length; i++) {
                 double[] image = new double[inputSize];
                 for (int j = 0; j < inputSize; j++) {
                     image[j] = X_train[j][i];
                 }
-                int firstPrediction = trainPredictions[i];
-                JFrame displayed = nn.displayImg(image, firstPrediction);
+                JFrame displayed = MetricsVisualizer.displayImg(image, trainPredictions[i]);
                 try {
                     Thread.sleep(1000);
-                    displayed.dispose();
                 } catch (InterruptedException e) {
                     e.printStackTrace();
+                } finally {
+                    displayed.dispose();
                 }
             }
-
         } catch (IOException e) {
             e.printStackTrace();
         }
-    }
+    }    
 }
