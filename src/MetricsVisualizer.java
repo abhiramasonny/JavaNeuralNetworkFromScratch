@@ -104,7 +104,7 @@ public class MetricsVisualizer extends JFrame {
 
     public static void displayConfusionMatrix(int[][] confusionMatrix, String[] labels) {
         JFrame frame = new JFrame("Confusion Matrix");
-        frame.setSize(400, 400);
+        frame.setSize(800, 800);
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
         JPanel panel = new JPanel() {

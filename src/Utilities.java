@@ -9,7 +9,65 @@ import java.util.Random;
 import static src.NeuralNetwork.*;
 
 public class Utilities {
+    public static double[][] sigmoid(double[][] Z) {
+        int m = Z.length;
+        int n = Z[0].length;
+        double[][] A = new double[m][n];
+        for (int i = 0; i < m; i++) {
+            for (int j = 0; j < n; j++) {
+                double val = 1.0 / (1.0 + Math.exp(-Z[i][j]));
+                A[i][j] = val;
+            }
+        }
+        return A;
+    }
 
+    public static double[][] sigmoidDerivative(double[][] Z) {
+        double[][] S = sigmoid(Z);
+        return multiplyElementWise(S, subtractScalar(S, 1.0));
+    }
+
+    public static double[][] relu(double[][] Z) {
+        int m = Z.length;
+        int n = Z[0].length;
+        double[][] A = new double[m][n];
+        for (int i = 0; i < m; i++) {
+            for (int j = 0; j < n; j++) {
+                A[i][j] = Math.max(0, Z[i][j]);
+            }
+        }
+        return A;
+    }
+
+    public static double[][] reluDerivative(double[][] Z) {
+        int m = Z.length;
+        int n = Z[0].length;
+        double[][] dZ = new double[m][n];
+        for (int i = 0; i < m; i++) {
+            for (int j = 0; j < n; j++) {
+                dZ[i][j] = Z[i][j] > 0 ? 1.0 : 0.0;
+            }
+        }
+        return dZ;
+    }
+
+    public static double[][] tanh(double[][] Z) {
+        int m = Z.length;
+        int n = Z[0].length;
+        double[][] A = new double[m][n];
+        for (int i = 0; i < m; i++) {
+            for (int j = 0; j < n; j++) {
+                A[i][j] = Math.tanh(Z[i][j]);
+            }
+        }
+        return A;
+    }
+
+    public static double[][] tanhDerivative(double[][] Z) {
+        double[][] A = tanh(Z);
+        return subtractScalar(multiplyElementWise(A, A), 1.0);
+    }
+    
     public static double computeCost(double[][] Y_hat, double[][] Y) {
         int m = Y[0].length;
         double cost = 0.0;

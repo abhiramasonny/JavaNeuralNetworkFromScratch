@@ -34,10 +34,8 @@ public class NeuralNetwork {
         this.epochs = epochs;
         this.batchSize = batchSize;
         this.activationFunction = activationFunction;
-
         init();
     }
-
     private void init() {
         @SuppressWarnings("unused")
         int layers = hiddenSizes.length + 1;
@@ -133,65 +131,6 @@ public class NeuralNetwork {
             default:
                 return sigmoidDerivative(Z);
         }
-    }
-
-    private double[][] sigmoid(double[][] Z) {
-        int m = Z.length;
-        int n = Z[0].length;
-        double[][] A = new double[m][n];
-        for (int i = 0; i < m; i++) {
-            for (int j = 0; j < n; j++) {
-                double val = 1.0 / (1.0 + Math.exp(-Z[i][j]));
-                A[i][j] = val;
-            }
-        }
-        return A;
-    }
-
-    private double[][] sigmoidDerivative(double[][] Z) {
-        double[][] S = sigmoid(Z);
-        return multiplyElementWise(S, subtractScalar(S, 1.0));
-    }
-
-    private double[][] relu(double[][] Z) {
-        int m = Z.length;
-        int n = Z[0].length;
-        double[][] A = new double[m][n];
-        for (int i = 0; i < m; i++) {
-            for (int j = 0; j < n; j++) {
-                A[i][j] = Math.max(0, Z[i][j]);
-            }
-        }
-        return A;
-    }
-
-    private double[][] reluDerivative(double[][] Z) {
-        int m = Z.length;
-        int n = Z[0].length;
-        double[][] dZ = new double[m][n];
-        for (int i = 0; i < m; i++) {
-            for (int j = 0; j < n; j++) {
-                dZ[i][j] = Z[i][j] > 0 ? 1.0 : 0.0;
-            }
-        }
-        return dZ;
-    }
-
-    private double[][] tanh(double[][] Z) {
-        int m = Z.length;
-        int n = Z[0].length;
-        double[][] A = new double[m][n];
-        for (int i = 0; i < m; i++) {
-            for (int j = 0; j < n; j++) {
-                A[i][j] = Math.tanh(Z[i][j]);
-            }
-        }
-        return A;
-    }
-
-    private double[][] tanhDerivative(double[][] Z) {
-        double[][] A = tanh(Z);
-        return subtractScalar(multiplyElementWise(A, A), 1.0);
     }
 
     private double[][] softmax(double[][] Z) {
