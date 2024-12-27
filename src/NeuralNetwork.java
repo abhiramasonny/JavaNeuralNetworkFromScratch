@@ -106,6 +106,92 @@ public class NeuralNetwork {
 
         return cache;
     }
+    public static double[][] sigmoid(double[][] Z) {
+        int m = Z.length;
+        int n = Z[0].length;
+        double[][] A = new double[m][n];
+        for (int i = 0; i < m; i++) {
+            double[] Z_row = Z[i];
+            double[] A_row = A[i];
+            for (int j = 0; j < n; j++) {
+                A_row[j] = 1.0 / (1.0 + Math.exp(-Z_row[j]));
+            }
+        }
+        return A;
+    }
+
+    public static double[][] sigmoidDerivative(double[][] Z) {
+        int m = Z.length;
+        int n = Z[0].length;
+        double[][] dZ = new double[m][n];
+        for (int i = 0; i < m; i++) {
+            double[] Z_row = Z[i];
+            double[] dZ_row = dZ[i];
+            for (int j = 0; j < n; j++) {
+                double s = 1.0 / (1.0 + Math.exp(-Z_row[j]));
+                dZ_row[j] = s * (1.0 - s);
+            }
+        }
+        return dZ;
+    }
+
+    public static double[][] relu(double[][] Z) {
+        int m = Z.length;
+        int n = Z[0].length;
+        double[][] A = new double[m][n];
+        for (int i = 0; i < m; i++) {
+            double[] Z_row = Z[i];
+            double[] A_row = A[i];
+            for (int j = 0; j < n; j++) {
+                A_row[j] = Math.max(0, Z_row[j]);
+            }
+        }
+        return A;
+    }
+
+    public static double[][] reluDerivative(double[][] Z) {
+        int m = Z.length;
+        int n = Z[0].length;
+        double[][] dZ = new double[m][n];
+        for (int i = 0; i < m; i++) {
+            double[] Z_row = Z[i];
+            double[] dZ_row = dZ[i];
+            for (int j = 0; j < n; j++) {
+                dZ_row[j] = Z_row[j] > 0 ? 1.0 : 0.0;
+            }
+        }
+        return dZ;
+    }
+
+    public static double[][] tanh(double[][] Z) {
+        int m = Z.length;
+        int n = Z[0].length;
+        double[][] A = new double[m][n];
+        for (int i = 0; i < m; i++) {
+            double[] Z_row = Z[i];
+            double[] A_row = A[i];
+            for (int j = 0; j < n; j++) {
+                A_row[j] = 1-(2*(1/(1+Math.exp(Z_row[j]*2))));
+            }
+        }
+        return A;
+    }
+
+    public static double[][] tanhDerivative(double[][] Z) {
+        int m = Z.length;
+        int n = Z[0].length;
+        double[][] dZ = new double[m][n];
+        // Compute tanh and its derivative in one pass to avoid extra arrays.
+        for (int i = 0; i < m; i++) {
+            double[] Z_row = Z[i];
+            double[] dZ_row = dZ[i];
+            for (int j = 0; j < n; j++) {
+                double t = 1-(2*(1/(1+Math.exp(Z_row[j]*2))));
+                dZ_row[j] = 1.0 - t * t;
+            }
+        }
+        return dZ;
+    }
 
     private double[][] activation(double[][] Z) {
         switch (activationFunction) {
