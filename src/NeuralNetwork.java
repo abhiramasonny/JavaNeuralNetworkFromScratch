@@ -2,6 +2,8 @@ package src;
 
 import static src.Utilities.*;
 
+
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
@@ -94,7 +96,6 @@ public class NeuralNetwork {
         for (int l = 1; l <= layers; l++) {
             ActivationFunction af = activationFunctions[Math.min(l - 1, activationFunctions.length - 1)];
             if (af == ActivationFunction.PRELU || af == ActivationFunction.ELU) {
-                // Initial alpha values can be set here
                 alphaParameters.put(l, DEFAULT_ALPHA);
             }
         }
@@ -219,39 +220,25 @@ public class NeuralNetwork {
 
     private double[][] activation(double[][] Z, ActivationFunction af, int layer) {
         switch (af) {
-            case RELU:
-                return relu(Z);
-            case SIGMOID:
-                return sigmoid(Z);
-            case TANH:
-                return tanh(Z);
-            case LEAKY_RELU:
-                return leakyRelu(Z);
-            case ELU:
-                return elu(Z, alphaParameters.getOrDefault(layer, DEFAULT_ALPHA));
-            case PRELU:
-                return prelu(Z, alphaParameters.getOrDefault(layer, DEFAULT_ALPHA));
-            default:
-                return sigmoid(Z);
+            case RELU: return relu(Z);
+            case SIGMOID: return sigmoid(Z);
+            case TANH: return tanh(Z);
+            case LEAKY_RELU: return leakyRelu(Z);
+            case ELU: return elu(Z, alphaParameters.getOrDefault(layer, DEFAULT_ALPHA));
+            case PRELU: return prelu(Z, alphaParameters.getOrDefault(layer, DEFAULT_ALPHA));
+            default: return sigmoid(Z);
         }
     }
 
     private double[][] activationDerivative(double[][] Z, ActivationFunction af, int layer) {
         switch (af) {
-            case RELU:
-                return reluDerivative(Z);
-            case SIGMOID:
-                return sigmoidDerivative(Z);
-            case TANH:
-                return tanhDerivative(Z);
-            case LEAKY_RELU:
-                return leakyReluDerivative(Z);
-            case ELU:
-                return eluDerivative(Z, alphaParameters.getOrDefault(layer, DEFAULT_ALPHA));
-            case PRELU:
-                return preluDerivative(Z, alphaParameters.getOrDefault(layer, DEFAULT_ALPHA));
-            default:
-                return sigmoidDerivative(Z);
+            case RELU: return reluDerivative(Z);
+            case SIGMOID: return sigmoidDerivative(Z);
+            case TANH: return tanhDerivative(Z);
+            case LEAKY_RELU: return leakyReluDerivative(Z);
+            case ELU: return eluDerivative(Z, alphaParameters.getOrDefault(layer, DEFAULT_ALPHA));
+            case PRELU: return preluDerivative(Z, alphaParameters.getOrDefault(layer, DEFAULT_ALPHA));
+            default: return sigmoidDerivative(Z);
         }
     }
 

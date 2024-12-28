@@ -1,36 +1,11 @@
 package src;
 
 import static src.NeuralNetwork.EPSILON;
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Random;
 
 public class Utilities {
-    private static final Random rand = new Random();
+    private static final Random RANDOM = new Random();
 
-    //fast log
-    final static int significandBits = 52;
-    final static int tableBits = 10;
-    final static int fractionBits = significandBits - tableBits;
-    final static double log2 = 0.69314718056;
-    final static double [] table = new double [(1 << tableBits) + 1];
-    static {
-        for (int bits = 0;bits <= 1 << tableBits;bits++)
-            table [bits] = Math.log (1 + bits / (double) (1 << tableBits));
-    }
-    public static double fastLog (double x) {
-        long bits = Double.doubleToLongBits (x);
-        if ((bits & (1L << 63)) != 0)
-            throw new IllegalArgumentException ("logarithm of negative number");
-        int exponent = (int) (bits >> 52);
-        int index = (int) (bits >> fractionBits) & ((1 << tableBits) - 1);
-        double fraction = (bits & ((1 << fractionBits) - 1)) / (double) (1 << fractionBits);
-        return (exponent - 1023) * log2 + fraction * table [index + 1] + (1 - fraction) * table [index];
-    }
     public static double computeCost(double[][] Y_hat, double[][] Y) {
         int m = Y[0].length;
         double cost = 0.0;
@@ -39,7 +14,7 @@ public class Utilities {
             double[] Y_row = Y[i];
             double[] Y_hat_row = Y_hat[i];
             for (int j = 0; j < m; j++) {
-                cost -= Y_row[j] * fastLog(Y_hat_row[j] + EPSILON);
+                cost -= Y_row[j] * Math.log(Y_hat_row[j] + EPSILON);
             }
         }
         cost /= m;
@@ -402,7 +377,7 @@ public class Utilities {
             permutation[i] = i;
         }
         for (int i = m - 1; i > 0; i--) {
-            int index = rand.nextInt(i + 1);
+            int index = RANDOM.nextInt(i + 1);
             int temp = permutation[index];
             permutation[index] = permutation[i];
             permutation[i] = temp;
@@ -446,40 +421,5 @@ public class Utilities {
             }
         }
         return labels;
-    }
-
-    public static Map<String, double[][]> loadMNIST(String imagesPath, String labelsPath, int numData) throws IOException {
-        byte[] imageBytes = Files.readAllBytes(Paths.get(imagesPath));
-        ByteBuffer imageBuffer = ByteBuffer.wrap(imageBytes);
-        byte[] labelBytes = Files.readAllBytes(Paths.get(labelsPath));
-        ByteBuffer labelBuffer = ByteBuffer.wrap(labelBytes);
-
-        imageBuffer.getInt(); // Magic number
-        int numImages = imageBuffer.getInt();
-        int numRows = imageBuffer.getInt();
-        int numCols = imageBuffer.getInt();
-
-        labelBuffer.getInt(); // Magic number
-        labelBuffer.getInt(); // Number of labels, should be equal to numImages
-
-        int totalData = Math.min(numData, numImages);
-        int imageSize = numRows * numCols;
-        double[][] X = new double[imageSize][totalData];
-        double[][] Y = new double[10][totalData];
-
-        for (int i = 0; i < totalData; i++) {
-            for (int j = 0; j < imageSize; j++) {
-                int pixel = imageBuffer.get() & 0xFF;
-                X[j][i] = pixel / 255.0;
-            }
-            int label = labelBuffer.get() & 0xFF;
-            Y[label][i] = 1.0;
-        }
-
-        Map<String, double[][]> data = new HashMap<>();
-        data.put("X", X);
-        data.put("Y", Y);
-
-        return data;
     }
 }

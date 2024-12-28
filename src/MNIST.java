@@ -5,6 +5,10 @@ import java.io.IOException;
 import java.util.Map;
 import javax.swing.JFrame;
 import src.NeuralNetwork.ActivationFunction;
+import java.nio.ByteBuffer;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.HashMap;
 
 public class MNIST {
 
@@ -75,5 +79,40 @@ public class MNIST {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public static Map<String, double[][]> loadMNIST(String imagesPath, String labelsPath, int numData) throws IOException {
+        byte[] imageBytes = Files.readAllBytes(Paths.get(imagesPath));
+        ByteBuffer imageBuffer = ByteBuffer.wrap(imageBytes);
+        byte[] labelBytes = Files.readAllBytes(Paths.get(labelsPath));
+        ByteBuffer labelBuffer = ByteBuffer.wrap(labelBytes);
+
+        imageBuffer.getInt(); // Magic number
+        int numImages = imageBuffer.getInt();
+        int numRows = imageBuffer.getInt();
+        int numCols = imageBuffer.getInt();
+
+        labelBuffer.getInt(); // Magic number
+        labelBuffer.getInt(); // Number of labels, should be equal to numImages
+
+        int totalData = Math.min(numData, numImages);
+        int imageSize = numRows * numCols;
+        double[][] X = new double[imageSize][totalData];
+        double[][] Y = new double[10][totalData];
+
+        for (int i = 0; i < totalData; i++) {
+            for (int j = 0; j < imageSize; j++) {
+                int pixel = imageBuffer.get() & 0xFF;
+                X[j][i] = pixel / 255.0;
+            }
+            int label = labelBuffer.get() & 0xFF;
+            Y[label][i] = 1.0;
+        }
+
+        Map<String, double[][]> data = new HashMap<>();
+        data.put("X", X);
+        data.put("Y", Y);
+
+        return data;
     }
 }
