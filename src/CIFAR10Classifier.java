@@ -21,26 +21,26 @@ public class CIFAR10Classifier {
 
     public static void main(String[] args) {
         try {
-            // Configuration parameters
             String dataDir = "data/cifar-10-batches-bin";
-            int numTrainingExamples = 10000;
+            int numTrainingExamples = 50000;
             int outputSize = 10;  // 10 classes in CIFAR-10
-            int epochs = 1;
-            int batchSize = 256;
+            int epochs = 5;
+            int batchSize = 1024;
             double splitRatio = 0.8;
             double learningRate = 0.001;
 
             int numTrain = (int) (numTrainingExamples * splitRatio);
             int numTest = numTrainingExamples - numTrain;
-            int[] hiddenSizes = {256, 128, 64};
+            int[] hiddenSizes = {512, 256, 128};
+
             ActivationFunction[] activationFunctions = {
-                ActivationFunction.LEAKY_RELU,
-                ActivationFunction.RELU,
-                ActivationFunction.LEAKY_RELU,
-                ActivationFunction.RELU,
-                ActivationFunction.LEAKY_RELU,
-                ActivationFunction.SOFTMAX // Output layer activation
-            };
+                ActivationFunction.RELU,       // Conv Layer 1
+                ActivationFunction.RELU,       // Conv Layer 2
+                ActivationFunction.RELU,       // Conv Layer 3
+                ActivationFunction.RELU,       // Fully Connected Layer 1
+                ActivationFunction.RELU,       // Fully Connected Layer 2
+                ActivationFunction.SOFTMAX     // Output Layer
+            };            
 
             System.out.println("Loading CIFAR-10 data...");
             Map<String, double[][]> data = loadCIFAR10(dataDir, numTrainingExamples, WIDTH, HEIGHT, CHANNELS);

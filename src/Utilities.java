@@ -1,7 +1,10 @@
 package src;
 
 import static src.NeuralNetwork.EPSILON;
+import static src.NeuralNetwork.LEAKY_RELU_ALPHA;
+
 import java.util.Random;
+import java.util.stream.IntStream;
 
 public class Utilities {
     private static final Random RANDOM = new Random();
@@ -20,48 +23,47 @@ public class Utilities {
         cost /= m;
         return cost;
     }
+    // Sigmoid derivative
     public static double[][] sigmoidDerivative(double[][] Z) {
         int m = Z.length;
         int n = Z[0].length;
         double[][] dZ = new double[m][n];
-        for (int i = 0; i < m; i++) {
-            double[] Z_row = Z[i];
-            double[] dZ_row = dZ[i];
+        IntStream.range(0, m).parallel().forEach(i -> {
             for (int j = 0; j < n; j++) {
-                double s = 1.0 / (1.0 + Math.exp(-Z_row[j]));
-                dZ_row[j] = s * (1.0 - s);
+                double s = 1.0 / (1.0 + Math.exp(-Z[i][j]));
+                dZ[i][j] = s * (1.0 - s);
             }
-        }
+        });
         return dZ;
     }
     
+    
+    // ReLU activation
     public static double[][] relu(double[][] Z) {
         int m = Z.length;
         int n = Z[0].length;
         double[][] A = new double[m][n];
-        for (int i = 0; i < m; i++) {
-            double[] Z_row = Z[i];
-            double[] A_row = A[i];
+        IntStream.range(0, m).parallel().forEach(i -> {
             for (int j = 0; j < n; j++) {
-                A_row[j] = Math.max(0, Z_row[j]);
+                A[i][j] = Math.max(0, Z[i][j]);
             }
-        }
+        });
         return A;
     }
-    
+
+    // ReLU derivative
     public static double[][] reluDerivative(double[][] Z) {
         int m = Z.length;
         int n = Z[0].length;
         double[][] dZ = new double[m][n];
-        for (int i = 0; i < m; i++) {
-            double[] Z_row = Z[i];
-            double[] dZ_row = dZ[i];
+        IntStream.range(0, m).parallel().forEach(i -> {
             for (int j = 0; j < n; j++) {
-                dZ_row[j] = Z_row[j] > 0 ? 1.0 : 0.0;
+                dZ[i][j] = Z[i][j] > 0 ? 1.0 : 0.0;
             }
-        }
+        });
         return dZ;
     }
+
     
     public static double[][] tanh(double[][] Z) {
         int m = Z.length;
@@ -91,20 +93,109 @@ public class Utilities {
         }
         return dZ;
     }
+    // Sigmoid activation
     public static double[][] sigmoid(double[][] Z) {
         int m = Z.length;
         int n = Z[0].length;
         double[][] A = new double[m][n];
-        for (int i = 0; i < m; i++) {
+        IntStream.range(0, m).parallel().forEach(i -> {
+            for (int j = 0; j < n; j++) {
+                A[i][j] = 1.0 / (1.0 + Math.exp(-Z[i][j]));
+            }
+        });
+        return A;
+    }
+
+    // Leaky ReLU activation
+    public static double[][] leakyRelu(double[][] Z) {
+        int m = Z.length;
+        int n = Z[0].length;
+        double[][] A = new double[m][n];
+        IntStream.range(0, m).parallel().forEach(i -> {
             double[] Z_row = Z[i];
             double[] A_row = A[i];
             for (int j = 0; j < n; j++) {
-                A_row[j] = 1.0 / (1.0 + Math.exp(-Z_row[j]));
+                A_row[j] = Z_row[j] > 0 ? Z_row[j] : LEAKY_RELU_ALPHA * Z_row[j];
             }
-        }
+        });
         return A;
     }
-    
+
+     // Leaky ReLU derivative
+     public static double[][] leakyReluDerivative(double[][] Z) {
+        int m = Z.length;
+        int n = Z[0].length;
+        double[][] dZ = new double[m][n];
+        IntStream.range(0, m).parallel().forEach(i -> {
+            double[] Z_row = Z[i];
+            double[] dZ_row = dZ[i];
+            for (int j = 0; j < n; j++) {
+                dZ_row[j] = Z_row[j] > 0 ? 1.0 : LEAKY_RELU_ALPHA;
+            }
+        });
+        return dZ;
+    }
+
+    // PReLU activation
+    public static double[][] prelu(double[][] Z, double alpha) {
+        int m = Z.length;
+        int n = Z[0].length;
+        double[][] A = new double[m][n];
+        IntStream.range(0, m).parallel().forEach(i -> {
+            double[] Z_row = Z[i];
+            double[] A_row = A[i];
+            for (int j = 0; j < n; j++) {
+                A_row[j] = Z_row[j] > 0 ? Z_row[j] : alpha * Z_row[j];
+            }
+        });
+        return A;
+    }
+
+    // PReLU derivative
+    public static double[][] preluDerivative(double[][] Z, double alpha) {
+        int m = Z.length;
+        int n = Z[0].length;
+        double[][] dZ = new double[m][n];
+        IntStream.range(0, m).parallel().forEach(i -> {
+            double[] Z_row = Z[i];
+            double[] dZ_row = dZ[i];
+            for (int j = 0; j < n; j++) {
+                dZ_row[j] = Z_row[j] > 0 ? 1.0 : alpha;
+            }
+        });
+        return dZ;
+    }
+
+    // ELU activation
+    public static double[][] elu(double[][] Z, double alpha) {
+        int m = Z.length;
+        int n = Z[0].length;
+        double[][] A = new double[m][n];
+        IntStream.range(0, m).parallel().forEach(i -> {
+            double[] Z_row = Z[i];
+            double[] A_row = A[i];
+            for (int j = 0; j < n; j++) {
+                A_row[j] = Z_row[j] >= 0 ? Z_row[j] : alpha * (Math.exp(Z_row[j]) - 1);
+            }
+        });
+        return A;
+    }
+
+    // ELU derivative
+    public static double[][] eluDerivative(double[][] Z, double alpha) {
+        int m = Z.length;
+        int n = Z[0].length;
+        double[][] dZ = new double[m][n];
+        IntStream.range(0, m).parallel().forEach(i -> {
+            double[] Z_row = Z[i];
+            double[] dZ_row = dZ[i];
+            for (int j = 0; j < n; j++) {
+                dZ_row[j] = Z_row[j] >= 0 ? 1.0 : alpha * Math.exp(Z_row[j]);
+            }
+        });
+        return dZ;
+    }
+
     public static double computeAccuracy(int[] predictions, int[] labels) {
         int correct = 0;
         for (int i = 0; i < predictions.length; i++) {
@@ -149,33 +240,41 @@ public class Utilities {
         return A;
     }
 
-    public static double[][] multiplyMatrices(double[][] A, double[][] B) {
-        int rows = A.length;
-        int sharedDim = A[0].length;
-        int cols = B[0].length;
-        double[][] C = new double[rows][cols];
+     // Matrix multiplication
+     public static double[][] multiplyMatrices(double[][] A, double[][] B) {
+        int rowsA = A.length;
+        int colsA = A[0].length;
+        int colsB = B[0].length;
 
-        // Transpose B to improve cache performance
-        double[][] B_T = new double[cols][sharedDim];
-        for (int i = 0; i < sharedDim; i++) {
-            for (int j = 0; j < cols; j++) {
-                B_T[j][i] = B[i][j];
-            }
-        }
+        double[][] C = new double[rowsA][colsB];
+        double[][] B_T = transposeMatrix(B);
 
-        for (int i = 0; i < rows; i++) {
-            double[] A_row = A[i];
-            double[] C_row = C[i];
-            for (int j = 0; j < cols; j++) {
-                double[] B_T_row = B_T[j];
-                double sum = 0.0;
-                for (int k = 0; k < sharedDim; k++) {
-                    sum += A_row[k] * B_T_row[k];
+        IntStream.range(0, rowsA).parallel().forEach(i -> {
+            for (int j = 0; j < colsB; j++) {
+                double sum = 0;
+                for (int k = 0; k < colsA; k++) {
+                    sum += A[i][k] * B_T[j][k];
                 }
-                C_row[j] = sum;
+                C[i][j] = sum;
             }
-        }
+        });
+
         return C;
+    }
+
+    // Transpose matrix
+    public static double[][] transposeMatrix(double[][] matrix) {
+        int rows = matrix.length;
+        int cols = matrix[0].length;
+        double[][] transposed = new double[cols][rows];
+
+        IntStream.range(0, cols).parallel().forEach(i -> {
+            for (int j = 0; j < rows; j++) {
+                transposed[i][j] = matrix[j][i];
+            }
+        });
+
+        return transposed;
     }
 
     public static double[][] transpose(double[][] A) {
@@ -294,19 +393,19 @@ public class Utilities {
         return C;
     }
 
+    // Scalar addition
     public static double[][] addScalar(double[][] A, double scalar) {
         int m = A.length;
         int n = A[0].length;
-        double[][] C = new double[m][n];
-    
-        for (int i = 0; i < m; i++) {
-            double[] A_row = A[i];
-            double[] C_row = C[i];
+        double[][] result = new double[m][n];
+
+        IntStream.range(0, m).parallel().forEach(i -> {
             for (int j = 0; j < n; j++) {
-                C_row[j] = A_row[j] + scalar;
+                result[i][j] = A[i][j] + scalar;
             }
-        }
-        return C;
+        });
+
+        return result;
     }
 
     public static double[][] subtractScalar(double[][] A, double scalar) {
