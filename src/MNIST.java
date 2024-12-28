@@ -14,8 +14,8 @@ public class MNIST {
     public static void main(String[] args) {
         
         try {
-            String trainImagesPath = "data/train-images.idx3-ubyte";
-            String trainLabelsPath = "data/train-labels.idx1-ubyte";
+            String trainImagesPath = "data/mnist/train-images.idx3-ubyte";
+            String trainLabelsPath = "data/mnist/train-labels.idx1-ubyte";
             int numTrainingExamples = 12000, inputSize = width * height, outputSize = 10, epochs = 10, batchSize = 64;
             double splitRatio = 0.8, learningRate = 0.001;
             int numTrain = (int) (numTrainingExamples * splitRatio), numTest = numTrainingExamples - numTrain;
