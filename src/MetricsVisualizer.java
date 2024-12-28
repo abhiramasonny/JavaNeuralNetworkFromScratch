@@ -5,11 +5,12 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
+import static src.MNIST.width;
+import static src.MNIST.height;
 
 public class MetricsVisualizer extends JFrame {
     public static JFrame displayImg(double[] image, int prediction) {
-        int width = 28;
-        int height = 28;
+
         int scale = 10; // Scale factor to make each pixel bigger
         BufferedImage bufferedImage = new BufferedImage(width * scale, height * scale, BufferedImage.TYPE_BYTE_GRAY);
     
@@ -38,6 +39,50 @@ public class MetricsVisualizer extends JFrame {
         frame.setVisible(true);
         return frame;
     }
+
+    public static JFrame displayImgCIFAR(double[] image, String prediction, int width, int height) {
+
+        int scale = 10;
+        BufferedImage bufferedImage = new BufferedImage(width * scale, height * scale, BufferedImage.TYPE_INT_RGB);
+
+        int channels = 3;
+
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                // Get the pixel value for each channel and normalize it
+                int r = (int) (image[(y * width + x) * channels] * 255);
+                int g = (int) (image[(y * width + x) * channels + 1] * 255);
+                int b = (int) (image[(y * width + x) * channels + 2] * 255);
+
+                // Ensure the values are within the 0-255 range
+                r = Math.max(0, Math.min(255, r));
+                g = Math.max(0, Math.min(255, g));
+                b = Math.max(0, Math.min(255, b));
+
+                // Set the pixel value with RGB colors
+                for (int dy = 0; dy < scale; dy++) {
+                    for (int dx = 0; dx < scale; dx++) {
+                        bufferedImage.setRGB(x * scale + dx, y * scale + dy, new Color(r, g, b).getRGB());
+                    }
+                }
+            }
+        }
+
+        JFrame frame = new JFrame();
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setSize(300, 300);
+        frame.setLayout(new BorderLayout());
+
+        JLabel imageLabel = new JLabel(new ImageIcon(bufferedImage));
+        frame.add(imageLabel, BorderLayout.CENTER);
+
+        JLabel predictionLabel = new JLabel("Prediction: " + prediction);
+        frame.add(predictionLabel, BorderLayout.SOUTH);
+
+        frame.setVisible(true);
+        return frame;
+    }
+
     private List<Double> losses = new ArrayList<>();
     private List<Double> accuracies = new ArrayList<>();
     private int epochs;
