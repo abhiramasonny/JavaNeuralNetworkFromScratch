@@ -1,6 +1,6 @@
 package src;
-import static src.NeuralNetwork.epsilon;
 
+import static src.NeuralNetwork.EPSILON;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
@@ -22,7 +22,6 @@ public class Utilities {
         for (int bits = 0;bits <= 1 << tableBits;bits++)
             table [bits] = Math.log (1 + bits / (double) (1 << tableBits));
     }
-
     public static double fastLog (double x) {
         long bits = Double.doubleToLongBits (x);
         if ((bits & (1L << 63)) != 0)
@@ -40,13 +39,97 @@ public class Utilities {
             double[] Y_row = Y[i];
             double[] Y_hat_row = Y_hat[i];
             for (int j = 0; j < m; j++) {
-                cost -= Y_row[j] * fastLog(Y_hat_row[j] + epsilon);
+                cost -= Y_row[j] * fastLog(Y_hat_row[j] + EPSILON);
             }
         }
         cost /= m;
         return cost;
     }
-
+    public static double[][] sigmoidDerivative(double[][] Z) {
+        int m = Z.length;
+        int n = Z[0].length;
+        double[][] dZ = new double[m][n];
+        for (int i = 0; i < m; i++) {
+            double[] Z_row = Z[i];
+            double[] dZ_row = dZ[i];
+            for (int j = 0; j < n; j++) {
+                double s = 1.0 / (1.0 + Math.exp(-Z_row[j]));
+                dZ_row[j] = s * (1.0 - s);
+            }
+        }
+        return dZ;
+    }
+    
+    public static double[][] relu(double[][] Z) {
+        int m = Z.length;
+        int n = Z[0].length;
+        double[][] A = new double[m][n];
+        for (int i = 0; i < m; i++) {
+            double[] Z_row = Z[i];
+            double[] A_row = A[i];
+            for (int j = 0; j < n; j++) {
+                A_row[j] = Math.max(0, Z_row[j]);
+            }
+        }
+        return A;
+    }
+    
+    public static double[][] reluDerivative(double[][] Z) {
+        int m = Z.length;
+        int n = Z[0].length;
+        double[][] dZ = new double[m][n];
+        for (int i = 0; i < m; i++) {
+            double[] Z_row = Z[i];
+            double[] dZ_row = dZ[i];
+            for (int j = 0; j < n; j++) {
+                dZ_row[j] = Z_row[j] > 0 ? 1.0 : 0.0;
+            }
+        }
+        return dZ;
+    }
+    
+    public static double[][] tanh(double[][] Z) {
+        int m = Z.length;
+        int n = Z[0].length;
+        double[][] A = new double[m][n];
+        for (int i = 0; i < m; i++) {
+            double[] Z_row = Z[i];
+            double[] A_row = A[i];
+            for (int j = 0; j < n; j++) {
+                A_row[j] = 1-(2*(1/(1+Math.exp(Z_row[j]*2))));
+            }
+        }
+        return A;
+    }
+    
+    public static double[][] tanhDerivative(double[][] Z) {
+        int m = Z.length;
+        int n = Z[0].length;
+        double[][] dZ = new double[m][n];
+        for (int i = 0; i < m; i++) {
+            double[] Z_row = Z[i];
+            double[] dZ_row = dZ[i];
+            for (int j = 0; j < n; j++) {
+                double t = 1-(2*(1/(1+Math.exp(Z_row[j]*2))));
+                dZ_row[j] = 1.0 - t * t;
+            }
+        }
+        return dZ;
+    }
+    public static double[][] sigmoid(double[][] Z) {
+        int m = Z.length;
+        int n = Z[0].length;
+        double[][] A = new double[m][n];
+        for (int i = 0; i < m; i++) {
+            double[] Z_row = Z[i];
+            double[] A_row = A[i];
+            for (int j = 0; j < n; j++) {
+                A_row[j] = 1.0 / (1.0 + Math.exp(-Z_row[j]));
+            }
+        }
+        return A;
+    }
+    
     public static double computeAccuracy(int[] predictions, int[] labels) {
         int correct = 0;
         for (int i = 0; i < predictions.length; i++) {
@@ -64,7 +147,33 @@ public class Utilities {
         }
         return matrix;
     }
-    
+    public static double[][] softmax(double[][] Z) {
+        int m = Z.length;
+        int n = Z[0].length;
+        double[][] A = new double[m][n];
+
+        for (int j = 0; j < n; j++) {
+            double max = Double.NEGATIVE_INFINITY;
+            for (int i = 0; i < m; i++) {
+                if (Z[i][j] > max) {
+                    max = Z[i][j];
+                }
+            }
+
+            double sumExp = 0.0;
+            for (int i = 0; i < m; i++) {
+                A[i][j] = Math.exp(Z[i][j] - max);
+                sumExp += A[i][j];
+            }
+
+            for (int i = 0; i < m; i++) {
+                A[i][j] /= sumExp;
+            }
+        }
+
+        return A;
+    }
+
     public static double[][] multiplyMatrices(double[][] A, double[][] B) {
         int rows = A.length;
         int sharedDim = A[0].length;

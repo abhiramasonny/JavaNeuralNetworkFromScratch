@@ -1,45 +1,54 @@
 package src;
 
-import java.io.*;
-import java.util.*;
-import javax.swing.*;
 import static src.Utilities.*;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Random;
+
 
 public class NeuralNetwork {
 
-    private int inputSize;
-    private int[] hiddenSizes;
-    private int outputSize;
-    private double learningRate;
-    private int epochs;
-    private int batchSize;
+    public static final double BETA1 = 0.9;            // Exponential decay rate for the first moment estimates
+    public static final double BETA2 = 0.999;          // Exponential decay rate for the second moment estimates
+    public static final double EPSILON = 1e-8;         // Small constant to prevent division by zero
+    public static final double LEAKY_RELU_ALPHA = 0.01; // Alpha value for Leaky ReLU
+    public static final double DEFAULT_ALPHA = 0.1;     // Default alpha for PReLU and ELU
+    public static final int EARLY_STOPPING_PATIENCE = 5; // Patience for early stopping
 
-    private ActivationFunction activationFunction;
+    public final int inputSize;
+    public final int[] hiddenSizes;
+    public final int outputSize;
+    public final double learningRate;
+    public final int epochs;
+    public final int batchSize;
 
-    private Map<String, double[][]> parameters = new HashMap<>();
-    private Map<String, double[][]> adamCache = new HashMap<>();
+    public final ActivationFunction[] activationFunctions;
 
-    // Hyperparameters for ADAM optimization
-    public static double beta1 = 0.9;
-    public static double beta2 = 0.999;
-    public static double epsilon = 1e-8;
+    public final Map<String, double[][]> parameters = new HashMap<>();
+    public final Map<String, double[][]> adamCache = new HashMap<>();
+    public final Map<Integer, Double> alphaParameters = new HashMap<>();
 
-    public enum ActivationFunction {SIGMOID, RELU, TANH}
+    public enum ActivationFunction {
+        SIGMOID, RELU, TANH, LEAKY_RELU, ELU, PRELU, SOFTMAX
+    }
 
-    public NeuralNetwork(int inputSize, int[] hiddenSizes, int outputSize, double learningRate, int epochs, int batchSize, ActivationFunction activationFunction) {
+    public NeuralNetwork(int inputSize, int[] hiddenSizes, int outputSize,
+                         double learningRate, int epochs, int batchSize,
+                         ActivationFunction[] activationFunctions) {
         this.inputSize = inputSize;
-        this.hiddenSizes = hiddenSizes;
+        this.hiddenSizes = hiddenSizes.clone();
         this.outputSize = outputSize;
         this.learningRate = learningRate;
         this.epochs = epochs;
         this.batchSize = batchSize;
-        this.activationFunction = activationFunction;
+        this.activationFunctions = activationFunctions.clone();
         init();
     }
+
     private void init() {
-        @SuppressWarnings("unused")
         int layers = hiddenSizes.length + 1;
-        int[] layerSizes = new int[hiddenSizes.length + 2];
+        int[] layerSizes = new int[layers + 1];
         layerSizes[0] = inputSize;
         System.arraycopy(hiddenSizes, 0, layerSizes, 1, hiddenSizes.length);
         layerSizes[layerSizes.length - 1] = outputSize;
@@ -50,19 +59,24 @@ public class NeuralNetwork {
             String W = "W" + l;
             String b = "b" + l;
 
-            double[][] weights = new double[layerSizes[l]][layerSizes[l - 1]];
-            double[][] biases = new double[layerSizes[l]][1];
+            int currentLayerSize = layerSizes[l];
+            int previousLayerSize = layerSizes[l - 1];
 
-            // He initialization for ReLU or Xavier for sigmoid/tanh
+            double[][] weights = new double[currentLayerSize][previousLayerSize];
+            double[][] biases = new double[currentLayerSize][1];
+
+            // He initialization for ReLU/variants or Xavier for sigmoid/tanh
             double factor;
-            if (activationFunction == ActivationFunction.RELU) {
-                factor = Math.sqrt(2.0 / layerSizes[l - 1]);
+            ActivationFunction af = activationFunctions[Math.min(l - 1, activationFunctions.length - 1)];
+            if (af == ActivationFunction.RELU || af == ActivationFunction.LEAKY_RELU
+                    || af == ActivationFunction.PRELU || af == ActivationFunction.ELU) {
+                factor = Math.sqrt(2.0 / previousLayerSize);
             } else {
-                factor = Math.sqrt(1.0 / layerSizes[l - 1]);
+                factor = Math.sqrt(1.0 / previousLayerSize);
             }
 
-            for (int i = 0; i < weights.length; i++) {
-                for (int j = 0; j < weights[0].length; j++) {
+            for (int i = 0; i < currentLayerSize; i++) {
+                for (int j = 0; j < previousLayerSize; j++) {
                     weights[i][j] = rand.nextGaussian() * factor;
                 }
             }
@@ -70,10 +84,19 @@ public class NeuralNetwork {
             parameters.put(W, weights);
             parameters.put(b, biases);
 
-            adamCache.put("m" + W, new double[weights.length][weights[0].length]);
-            adamCache.put("v" + W, new double[weights.length][weights[0].length]);
-            adamCache.put("m" + b, new double[biases.length][biases[0].length]);
-            adamCache.put("v" + b, new double[biases.length][biases[0].length]);
+            adamCache.put("m" + W, new double[currentLayerSize][previousLayerSize]);
+            adamCache.put("v" + W, new double[currentLayerSize][previousLayerSize]);
+            adamCache.put("m" + b, new double[currentLayerSize][1]);
+            adamCache.put("v" + b, new double[currentLayerSize][1]);
+        }
+
+        // Initialize alpha parameters for PReLU and ELU
+        for (int l = 1; l <= layers; l++) {
+            ActivationFunction af = activationFunctions[Math.min(l - 1, activationFunctions.length - 1)];
+            if (af == ActivationFunction.PRELU || af == ActivationFunction.ELU) {
+                // Initial alpha values can be set here
+                alphaParameters.put(l, DEFAULT_ALPHA);
+            }
         }
     }
 
@@ -94,11 +117,12 @@ public class NeuralNetwork {
             double[][] Z = addVectors(multiplyMatrices(Wl, A_prev), bl);
             cache.put("Z" + l, Z);
 
+            ActivationFunction af = activationFunctions[Math.min(l - 1, activationFunctions.length - 1)];
             double[][] A;
-            if (l == L) {
+            if (af == ActivationFunction.SOFTMAX) {
                 A = softmax(Z);
             } else {
-                A = activation(Z);
+                A = activation(Z, af, l); // Pass layer index l
             }
             cache.put("A" + l, A);
             A_prev = A;
@@ -106,7 +130,8 @@ public class NeuralNetwork {
 
         return cache;
     }
-    public static double[][] sigmoid(double[][] Z) {
+
+    public static double[][] leakyRelu(double[][] Z) {
         int m = Z.length;
         int n = Z[0].length;
         double[][] A = new double[m][n];
@@ -114,13 +139,13 @@ public class NeuralNetwork {
             double[] Z_row = Z[i];
             double[] A_row = A[i];
             for (int j = 0; j < n; j++) {
-                A_row[j] = 1.0 / (1.0 + Math.exp(-Z_row[j]));
+                A_row[j] = Z_row[j] > 0 ? Z_row[j] : LEAKY_RELU_ALPHA * Z_row[j];
             }
         }
         return A;
     }
 
-    public static double[][] sigmoidDerivative(double[][] Z) {
+    public static double[][] leakyReluDerivative(double[][] Z) {
         int m = Z.length;
         int n = Z[0].length;
         double[][] dZ = new double[m][n];
@@ -128,14 +153,13 @@ public class NeuralNetwork {
             double[] Z_row = Z[i];
             double[] dZ_row = dZ[i];
             for (int j = 0; j < n; j++) {
-                double s = 1.0 / (1.0 + Math.exp(-Z_row[j]));
-                dZ_row[j] = s * (1.0 - s);
+                dZ_row[j] = Z_row[j] > 0 ? 1.0 : LEAKY_RELU_ALPHA;
             }
         }
         return dZ;
     }
 
-    public static double[][] relu(double[][] Z) {
+    public double[][] prelu(double[][] Z, double alpha) {
         int m = Z.length;
         int n = Z[0].length;
         double[][] A = new double[m][n];
@@ -143,13 +167,13 @@ public class NeuralNetwork {
             double[] Z_row = Z[i];
             double[] A_row = A[i];
             for (int j = 0; j < n; j++) {
-                A_row[j] = Math.max(0, Z_row[j]);
+                A_row[j] = Z_row[j] > 0 ? Z_row[j] : alpha * Z_row[j];
             }
         }
         return A;
     }
 
-    public static double[][] reluDerivative(double[][] Z) {
+    public double[][] preluDerivative(double[][] Z, double alpha) {
         int m = Z.length;
         int n = Z[0].length;
         double[][] dZ = new double[m][n];
@@ -157,93 +181,78 @@ public class NeuralNetwork {
             double[] Z_row = Z[i];
             double[] dZ_row = dZ[i];
             for (int j = 0; j < n; j++) {
-                dZ_row[j] = Z_row[j] > 0 ? 1.0 : 0.0;
+                dZ_row[j] = Z_row[j] > 0 ? 1.0 : alpha;
             }
         }
         return dZ;
     }
 
-    public static double[][] tanh(double[][] Z) {
+    public double[][] elu(double[][] Z, double alpha) {
         int m = Z.length;
         int n = Z[0].length;
         double[][] A = new double[m][n];
+
         for (int i = 0; i < m; i++) {
             double[] Z_row = Z[i];
             double[] A_row = A[i];
             for (int j = 0; j < n; j++) {
-                A_row[j] = 1-(2*(1/(1+Math.exp(Z_row[j]*2))));
+                A_row[j] = Z_row[j] >= 0 ? Z_row[j] : alpha * (Math.exp(Z_row[j]) - 1);
             }
         }
         return A;
     }
 
-    public static double[][] tanhDerivative(double[][] Z) {
+    public double[][] eluDerivative(double[][] Z, double alpha) {
         int m = Z.length;
         int n = Z[0].length;
         double[][] dZ = new double[m][n];
-        // Compute tanh and its derivative in one pass to avoid extra arrays.
+
         for (int i = 0; i < m; i++) {
             double[] Z_row = Z[i];
             double[] dZ_row = dZ[i];
             for (int j = 0; j < n; j++) {
-                double t = 1-(2*(1/(1+Math.exp(Z_row[j]*2))));
-                dZ_row[j] = 1.0 - t * t;
+                dZ_row[j] = Z_row[j] >= 0 ? 1 : alpha * Math.exp(Z_row[j]);
             }
         }
         return dZ;
     }
 
-    private double[][] activation(double[][] Z) {
-        switch (activationFunction) {
+    private double[][] activation(double[][] Z, ActivationFunction af, int layer) {
+        switch (af) {
             case RELU:
                 return relu(Z);
             case SIGMOID:
                 return sigmoid(Z);
             case TANH:
                 return tanh(Z);
+            case LEAKY_RELU:
+                return leakyRelu(Z);
+            case ELU:
+                return elu(Z, alphaParameters.getOrDefault(layer, DEFAULT_ALPHA));
+            case PRELU:
+                return prelu(Z, alphaParameters.getOrDefault(layer, DEFAULT_ALPHA));
             default:
                 return sigmoid(Z);
         }
     }
 
-    private double[][] activationDerivative(double[][] Z) {
-        switch (activationFunction) {
+    private double[][] activationDerivative(double[][] Z, ActivationFunction af, int layer) {
+        switch (af) {
             case RELU:
                 return reluDerivative(Z);
             case SIGMOID:
                 return sigmoidDerivative(Z);
             case TANH:
                 return tanhDerivative(Z);
+            case LEAKY_RELU:
+                return leakyReluDerivative(Z);
+            case ELU:
+                return eluDerivative(Z, alphaParameters.getOrDefault(layer, DEFAULT_ALPHA));
+            case PRELU:
+                return preluDerivative(Z, alphaParameters.getOrDefault(layer, DEFAULT_ALPHA));
             default:
                 return sigmoidDerivative(Z);
         }
-    }
-
-    private double[][] softmax(double[][] Z) {
-        int m = Z.length;
-        int n = Z[0].length;
-        double[][] A = new double[m][n];
-
-        for (int j = 0; j < n; j++) {
-            double max = Double.NEGATIVE_INFINITY;
-            for (int i = 0; i < m; i++) {
-                if (Z[i][j] > max) {
-                    max = Z[i][j];
-                }
-            }
-
-            double sumExp = 0.0;
-            for (int i = 0; i < m; i++) {
-                A[i][j] = Math.exp(Z[i][j] - max);
-                sumExp += A[i][j];
-            }
-
-            for (int i = 0; i < m; i++) {
-                A[i][j] /= sumExp;
-            }
-        }
-
-        return A;
     }
 
     public Map<String, double[][]> backProp(double[][] X, double[][] Y, Map<String, double[][]> cache) {
@@ -251,11 +260,12 @@ public class NeuralNetwork {
         int m = X[0].length;
         int L = hiddenSizes.length + 1;
 
-        double[][] dA_prev = null;
+        double[][] dA_prev;
 
         double[][] A_L = cache.get("A" + L);
         double[][] dZ_L = subtractMatrices(A_L, Y);
         gradients.put("dZ" + L, dZ_L);
+
         double[][] A_prev_L = cache.get("A" + (L - 1));
         double[][] dW_L = scalarMultiply(multiplyMatrices(dZ_L, transpose(A_prev_L)), 1.0 / m);
         double[][] db_L = scalarMultiply(sumColumns(dZ_L), 1.0 / m);
@@ -265,10 +275,9 @@ public class NeuralNetwork {
         dA_prev = multiplyMatrices(transpose(parameters.get("W" + L)), dZ_L);
 
         for (int l = L - 1; l >= 1; l--) {
-            @SuppressWarnings("unused")
-            String Wl_plus1 = "W" + (l + 1);
             double[][] Zl = cache.get("Z" + l);
-            double[][] dZl = multiplyElementWise(dA_prev, activationDerivative(Zl));
+            ActivationFunction af = activationFunctions[Math.min(l - 1, activationFunctions.length - 1)];
+            double[][] dZl = multiplyElementWise(dA_prev, activationDerivative(Zl, af, l));
             gradients.put("dZ" + l, dZl);
 
             double[][] A_prev_l = cache.get("A" + (l - 1));
@@ -290,59 +299,86 @@ public class NeuralNetwork {
         for (String key : parameters.keySet()) {
             double[][] theta = parameters.get(key);
             double[][] dtheta = gradients.get("d" + key);
+            if (dtheta == null) continue;
+
             double[][] m = adamCache.get("m" + key);
             double[][] v = adamCache.get("v" + key);
 
-            m = addMatrices(scalarMultiply(m, beta1), scalarMultiply(dtheta, 1 - beta1));
-            v = addMatrices(scalarMultiply(v, beta2), scalarMultiply(squareMatrix(dtheta), 1 - beta2));
+            m = addMatrices(scalarMultiply(m, BETA1), scalarMultiply(dtheta, 1 - BETA1));
+            v = addMatrices(scalarMultiply(v, BETA2), scalarMultiply(squareMatrix(dtheta), 1 - BETA2));
 
-            double[][] m_hat = scalarDivide(m, (1 - Math.pow(beta1, t)));
-            double[][] v_hat = scalarDivide(v, (1 - Math.pow(beta2, t)));
+            double[][] m_hat = scalarDivide(m, (1 - Math.pow(BETA1, t)));
+            double[][] v_hat = scalarDivide(v, (1 - Math.pow(BETA2, t)));
 
-            double[][] update = scalarMultiply(elementWiseDivide(m_hat, addScalar(sqrtMatrix(v_hat), epsilon)), learningRate);
+            double[][] update = scalarMultiply(
+                    elementWiseDivide(m_hat, addScalar(sqrtMatrix(v_hat), EPSILON)),
+                    learningRate);
             theta = subtractMatrices(theta, update);
 
             parameters.put(key, theta);
             adamCache.put("m" + key, m);
             adamCache.put("v" + key, v);
         }
+
+        for (Map.Entry<Integer, Double> entry : alphaParameters.entrySet()) {
+            int layer = entry.getKey();
+            double alpha = entry.getValue();
+            alphaParameters.put(layer, alpha);
+        }
     }
 
     public void train(double[][] X, double[][] Y) {
         int m = X[0].length;
         int t = 0;
-    
+
         MetricsVisualizer visualizer = new MetricsVisualizer(epochs);
         visualizer.setVisible(true);
-    
+
+        // Early stopping stuff
+        double bestLoss = Double.MAX_VALUE;
+        int wait = 0;
+
         for (int epoch = 0; epoch < epochs; epoch++) {
             int[] permutation = getRandomPermutation(m);
             double[][] X_shuffled = shuffleColumns(X, permutation);
             double[][] Y_shuffled = shuffleColumns(Y, permutation);
-    
+
             double totalLoss = 0.0;
-    
+
             for (int i = 0; i < m; i += batchSize) {
                 t++;
                 int end = Math.min(i + batchSize, m);
                 double[][] X_batch = getBatch(X_shuffled, i, end);
                 double[][] Y_batch = getBatch(Y_shuffled, i, end);
-    
+
                 Map<String, double[][]> cache = forwardProp(X_batch);
                 double cost = computeCost(cache.get("A" + (hiddenSizes.length + 1)), Y_batch);
                 Map<String, double[][]> gradients = backProp(X_batch, Y_batch, cache);
                 updateParameters(gradients, t);
-    
+
                 totalLoss += cost;
             }
-    
+
             double epochLoss = totalLoss / (m / batchSize);
             int[] predictions = predict(X);
             int[] labels = convertOneHotToLabels(Y);
             double accuracy = computeAccuracy(predictions, labels);
-    
-            System.out.println("Epoch " + (epoch + 1) + ": Loss = " + epochLoss + ", Accuracy = " + accuracy);
+
+            System.out.println("Epoch " + (epoch + 1) +
+                    ": Loss = " + epochLoss +
+                    ", Accuracy = " + accuracy);
             visualizer.logMetrics(epochLoss, accuracy);
+
+            if (epochLoss < bestLoss) {
+                bestLoss = epochLoss;
+                wait = 0;
+            } else {
+                wait++;
+                if (wait >= EARLY_STOPPING_PATIENCE) {
+                    System.out.println("Early stopping at epoch " + (epoch + 1));
+                    break;
+                }
+            }
         }
     }
 
@@ -365,63 +401,4 @@ public class NeuralNetwork {
         }
         return predictions;
     }
-
-    public static void main(String[] args) {
-        try {
-            String trainImagesPath = "data/train-images.idx3-ubyte";
-            String trainLabelsPath = "data/train-labels.idx1-ubyte";
-            int numTrainingExamples = 12000, inputSize = 28 * 28, outputSize = 10, epochs = 3, batchSize = 32;
-            double splitRatio = 0.8, learningRate = 0.001;
-            int numTrain = (int) (numTrainingExamples * splitRatio), numTest = numTrainingExamples - numTrain;
-            int[] hiddenSizes = {128, 64, 64, 32};
-            ActivationFunction func = ActivationFunction.RELU;
-    
-            Map<String, double[][]> data = loadMNIST(trainImagesPath, trainLabelsPath, numTrainingExamples);
-            double[][] X = data.get("X"), Y = data.get("Y");
-            double[][] X_train = new double[X.length][numTrain], Y_train = new double[Y.length][numTrain];
-            double[][] X_test = new double[X.length][numTest], Y_test = new double[Y.length][numTest];
-            int[] indices = getRandomPermutation(numTrainingExamples);
-    
-            for (int i = 0; i < numTrainingExamples; i++) {
-                double[][] X_target = i < numTrain ? X_train : X_test, Y_target = i < numTrain ? Y_train : Y_test;
-                int targetIndex = i < numTrain ? i : i - numTrain;
-                for (int j = 0; j < X.length; j++) X_target[j][targetIndex] = X[j][indices[i]];
-                for (int j = 0; j < Y.length; j++) Y_target[j][targetIndex] = Y[j][indices[i]];
-            }
-    
-            NeuralNetwork nn = new NeuralNetwork(inputSize, hiddenSizes, outputSize, learningRate, epochs, batchSize, func);
-            System.out.println("Starting training...");
-            nn.train(X_train, Y_train);
-            System.out.println("Training completed.");
-    
-            int[] trainPredictions = nn.predict(X_train);
-            int[] trainLabels = convertOneHotToLabels(Y_train);
-            double trainAccuracy = computeAccuracy(trainPredictions, trainLabels);
-            System.out.println("Training accuracy: " + trainAccuracy);
-    
-            int[] testPredictions = nn.predict(X_test);
-            int[] testLabels = convertOneHotToLabels(Y_test);
-            double testAccuracy = computeAccuracy(testPredictions, testLabels);
-            System.out.println("Test accuracy: " + testAccuracy);
-            int[][] confusionMatrix = computeConfusionMatrix(testPredictions, testLabels, outputSize);
-            MetricsVisualizer.displayConfusionMatrix(confusionMatrix, new String[]{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"});
-    
-            for (int i = 0; i <= 100 && i < trainPredictions.length; i++) {
-                double[] image = new double[inputSize];
-                for (int j = 0; j < inputSize; j++) {
-                    image[j] = X_train[j][i];
-                }
-                JFrame displayed = MetricsVisualizer.displayImg(image, trainPredictions[i]);
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                } finally {
-                    displayed.dispose();
-                }
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }    
 }
