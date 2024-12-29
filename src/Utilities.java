@@ -3,6 +3,8 @@ package src;
 import static src.NeuralNetwork.EPSILON;
 import static src.NeuralNetwork.LEAKY_RELU_ALPHA;
 
+import java.awt.Graphics2D;
+import java.awt.image.BufferedImage;
 import java.util.Random;
 import java.util.stream.IntStream;
 
@@ -23,17 +25,10 @@ public class Utilities {
     }
     
     public static double[][] sigmoidDerivative(double[][] Z) {
-        int m = Z.length;
-        int n = Z[0].length;
-        double[][] dZ = new double[m][n];
-        IntStream.range(0, m).parallel().forEach(i -> {
-            for (int j = 0; j < n; j++) {
-                double s = 1.0 / (1.0 + Math.exp(-Z[i][j]));
-                dZ[i][j] = s * (1.0 - s);
-            }
-        });
-        return dZ;
+        double[][] sigmoidZ = sigmoid(Z);
+        return multiplyElementWise(sigmoidZ, subtractScalar(sigmoidZ, 1.0));
     }
+
     
     public static double[][] sigmoid(double[][] Z) {
         int m = Z.length;
@@ -46,30 +41,25 @@ public class Utilities {
         });
         return A;
     }
-    // ReLU activation
-    public static double[][] relu(double[][] Z) {
-        int m = Z.length;
-        int n = Z[0].length;
-        double[][] A = new double[m][n];
+    public static double[][] applyFunction(double[][] matrix, java.util.function.DoubleUnaryOperator func) {
+        int m = matrix.length;
+        int n = matrix[0].length;
+        double[][] result = new double[m][n];
         IntStream.range(0, m).parallel().forEach(i -> {
             for (int j = 0; j < n; j++) {
-                A[i][j] = Math.max(0, Z[i][j]);
+                result[i][j] = func.applyAsDouble(matrix[i][j]);
             }
         });
-        return A;
+        return result;
     }
 
-    // ReLU derivative
+    // ReLU activation
+    public static double[][] relu(double[][] Z) {
+        return applyFunction(Z, value -> Math.max(0, value));
+    }
+
     public static double[][] reluDerivative(double[][] Z) {
-        int m = Z.length;
-        int n = Z[0].length;
-        double[][] dZ = new double[m][n];
-        IntStream.range(0, m).parallel().forEach(i -> {
-            for (int j = 0; j < n; j++) {
-                dZ[i][j] = Z[i][j] > 0 ? 1.0 : 0.0;
-            }
-        });
-        return dZ;
+        return applyFunction(Z, value -> value > 0 ? 1.0 : 0.0);
     }
 
     
@@ -102,36 +92,13 @@ public class Utilities {
         return dZ;
     }
 
-    // Leaky ReLU activation
     public static double[][] leakyRelu(double[][] Z) {
-        int m = Z.length;
-        int n = Z[0].length;
-        double[][] A = new double[m][n];
-        IntStream.range(0, m).parallel().forEach(i -> {
-            double[] Z_row = Z[i];
-            double[] A_row = A[i];
-            for (int j = 0; j < n; j++) {
-                A_row[j] = Z_row[j] > 0 ? Z_row[j] : LEAKY_RELU_ALPHA * Z_row[j];
-            }
-        });
-        return A;
+        return applyFunction(Z, value -> value > 0 ? value : LEAKY_RELU_ALPHA * value);
     }
 
-     // Leaky ReLU derivative
-     public static double[][] leakyReluDerivative(double[][] Z) {
-        int m = Z.length;
-        int n = Z[0].length;
-        double[][] dZ = new double[m][n];
-        IntStream.range(0, m).parallel().forEach(i -> {
-            double[] Z_row = Z[i];
-            double[] dZ_row = dZ[i];
-            for (int j = 0; j < n; j++) {
-                dZ_row[j] = Z_row[j] > 0 ? 1.0 : LEAKY_RELU_ALPHA;
-            }
-        });
-        return dZ;
+    public static double[][] leakyReluDerivative(double[][] Z) {
+        return applyFunction(Z, value -> value > 0 ? 1.0 : LEAKY_RELU_ALPHA);
     }
-
     // PReLU activation
     public static double[][] prelu(double[][] Z, double alpha) {
         int m = Z.length;
@@ -493,5 +460,25 @@ public class Utilities {
             }
         }
         return labels;
+    }
+
+    public double[] preprocessImage(BufferedImage img, int targetWidth, int targetHeight) {
+        BufferedImage resizedImage = new BufferedImage(targetWidth, targetHeight, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g2d = resizedImage.createGraphics();
+        g2d.drawImage(img, 0, 0, targetWidth, targetHeight, null);
+        g2d.dispose();
+    
+        int width = resizedImage.getWidth();
+        int height = resizedImage.getHeight();
+        double[] imageArray = new double[width * height];
+    
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                int rgb = resizedImage.getRGB(x, y);
+                int gray = (rgb >> 16) & 0xff;
+                imageArray[y * width + x] = gray / 255.0;
+            }
+        }
+        return imageArray;
     }
 }

@@ -1,9 +1,5 @@
 package src;
 
-
-
-
-
 import static src.Utilities.addMatrices;
 import static src.Utilities.addScalar;
 import static src.Utilities.addVectors;
@@ -40,7 +36,6 @@ import static src.Utilities.transpose;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
-
 
 public class NeuralNetwork {
 
@@ -334,5 +329,26 @@ public class NeuralNetwork {
             predictions[j] = maxIndex;
         }
         return predictions;
+    }
+    public int predict(double[] image) {
+        double[][] X = new double[image.length][1];
+        for (int i = 0; i < image.length; i++) {
+            X[i][0] = image[i];
+        }
+
+        Map<String, double[][]> cache = forwardProp(X);
+    
+        double[][] A_final = cache.get("A" + (hiddenSizes.length + 1));
+    
+        int prediction = 0;
+        double maxActivation = A_final[0][0];
+        for (int i = 1; i < A_final.length; i++) {
+            if (A_final[i][0] > maxActivation) {
+                maxActivation = A_final[i][0];
+                prediction = i;
+            }
+        }
+    
+        return prediction;
     }
 }
