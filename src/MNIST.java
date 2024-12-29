@@ -1,6 +1,11 @@
 package src;
 
-import static src.Utilities.*;
+
+import static src.Utilities.computeAccuracy;
+import static src.Utilities.computeConfusionMatrix;
+import static src.Utilities.convertOneHotToLabels;
+import static src.Utilities.getRandomPermutation;
+
 import java.io.IOException;
 import java.util.Map;
 import javax.swing.JFrame;

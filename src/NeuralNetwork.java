@@ -1,8 +1,41 @@
 package src;
 
-import static src.Utilities.*;
 
 
+
+
+import static src.Utilities.addMatrices;
+import static src.Utilities.addScalar;
+import static src.Utilities.addVectors;
+import static src.Utilities.computeAccuracy;
+import static src.Utilities.computeCost;
+import static src.Utilities.convertOneHotToLabels;
+import static src.Utilities.elementWiseDivide;
+import static src.Utilities.elu;
+import static src.Utilities.eluDerivative;
+import static src.Utilities.getBatch;
+import static src.Utilities.getRandomPermutation;
+import static src.Utilities.leakyRelu;
+import static src.Utilities.leakyReluDerivative;
+import static src.Utilities.multiplyElementWise;
+import static src.Utilities.multiplyMatrices;
+import static src.Utilities.prelu;
+import static src.Utilities.preluDerivative;
+import static src.Utilities.relu;
+import static src.Utilities.reluDerivative;
+import static src.Utilities.scalarDivide;
+import static src.Utilities.scalarMultiply;
+import static src.Utilities.shuffleColumns;
+import static src.Utilities.sigmoid;
+import static src.Utilities.sigmoidDerivative;
+import static src.Utilities.softmax;
+import static src.Utilities.sqrtMatrix;
+import static src.Utilities.squareMatrix;
+import static src.Utilities.subtractMatrices;
+import static src.Utilities.sumColumns;
+import static src.Utilities.tanh;
+import static src.Utilities.tanhDerivative;
+import static src.Utilities.transpose;
 
 import java.util.HashMap;
 import java.util.Map;

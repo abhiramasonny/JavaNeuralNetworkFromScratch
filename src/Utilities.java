@@ -11,19 +11,17 @@ public class Utilities {
 
     public static double computeCost(double[][] Y_hat, double[][] Y) {
         int m = Y[0].length;
-        double cost = 0.0;
-
-        for (int i = 0; i < Y.length; i++) {
+        return IntStream.range(0, Y.length).parallel().mapToDouble(i -> {
+            double cost = 0.0;
             double[] Y_row = Y[i];
             double[] Y_hat_row = Y_hat[i];
             for (int j = 0; j < m; j++) {
                 cost -= Y_row[j] * Math.log(Y_hat_row[j] + EPSILON);
             }
-        }
-        cost /= m;
-        return cost;
+            return cost;
+        }).sum() / m;
     }
-    // Sigmoid derivative
+    
     public static double[][] sigmoidDerivative(double[][] Z) {
         int m = Z.length;
         int n = Z[0].length;
@@ -37,7 +35,17 @@ public class Utilities {
         return dZ;
     }
     
-    
+    public static double[][] sigmoid(double[][] Z) {
+        int m = Z.length;
+        int n = Z[0].length;
+        double[][] A = new double[m][n];
+        IntStream.range(0, m).parallel().forEach(i -> {
+            for (int j = 0; j < n; j++) {
+                A[i][j] = 1.0 / (1.0 + Math.exp(-Z[i][j]));
+            }
+        });
+        return A;
+    }
     // ReLU activation
     public static double[][] relu(double[][] Z) {
         int m = Z.length;
@@ -92,18 +100,6 @@ public class Utilities {
             }
         }
         return dZ;
-    }
-    // Sigmoid activation
-    public static double[][] sigmoid(double[][] Z) {
-        int m = Z.length;
-        int n = Z[0].length;
-        double[][] A = new double[m][n];
-        IntStream.range(0, m).parallel().forEach(i -> {
-            for (int j = 0; j < n; j++) {
-                A[i][j] = 1.0 / (1.0 + Math.exp(-Z[i][j]));
-            }
-        });
-        return A;
     }
 
     // Leaky ReLU activation
@@ -240,25 +236,21 @@ public class Utilities {
         return A;
     }
 
-     // Matrix multiplication
-     public static double[][] multiplyMatrices(double[][] A, double[][] B) {
+    public static double[][] multiplyMatrices(double[][] A, double[][] B) {
         int rowsA = A.length;
         int colsA = A[0].length;
         int colsB = B[0].length;
 
         double[][] C = new double[rowsA][colsB];
-        double[][] B_T = transposeMatrix(B);
-
         IntStream.range(0, rowsA).parallel().forEach(i -> {
             for (int j = 0; j < colsB; j++) {
-                double sum = 0;
+                double sum = 0.0;
                 for (int k = 0; k < colsA; k++) {
-                    sum += A[i][k] * B_T[j][k];
+                    sum += A[i][k] * B[k][j];
                 }
                 C[i][j] = sum;
             }
         });
-
         return C;
     }
 
@@ -307,45 +299,26 @@ public class Utilities {
         return C;
     }
 
-    public static double[][] subtractMatrices(double[][] A, double[][] B) {
-        int m = A.length;
-        int n = A[0].length;
-        double[][] C = new double[m][n];
-
-        for (int i = 0; i < m; i++) {
-            double[] A_row = A[i], B_row = B[i], C_row = C[i];
-            for (int j = 0; j < n; j++) {
-                C_row[j] = A_row[j] - B_row[j];
-            }
-        }
-        return C;
+    public static double[][] addMatrices(double[][] A, double[][] B) {
+        return elementWiseOperation(A, B, Double::sum);
     }
 
-    public static double[][] addMatrices(double[][] A, double[][] B) {
-        int m = A.length;
-        int n = A[0].length;
-        double[][] C = new double[m][n];
-
-        for (int i = 0; i < m; i++) {
-            double[] A_row = A[i], B_row = B[i], C_row = C[i];
-            for (int j = 0; j < n; j++) {
-                C_row[j] = A_row[j] + B_row[j];
-            }
-        }
-        return C;
+    public static double[][] subtractMatrices(double[][] A, double[][] B) {
+        return elementWiseOperation(A, B, (a, b) -> a - b);
     }
 
     public static double[][] multiplyElementWise(double[][] A, double[][] B) {
+        return elementWiseOperation(A, B, (a, b) -> a * b);
+    }
+    public static double[][] elementWiseOperation(double[][] A, double[][] B, java.util.function.DoubleBinaryOperator func) {
         int m = A.length;
         int n = A[0].length;
         double[][] C = new double[m][n];
-
-        for (int i = 0; i < m; i++) {
-            double[] A_row = A[i], B_row = B[i], C_row = C[i];
+        IntStream.range(0, m).parallel().forEach(i -> {
             for (int j = 0; j < n; j++) {
-                C_row[j] = A_row[j] * B_row[j];
+                C[i][j] = func.applyAsDouble(A[i][j], B[i][j]);
             }
-        }
+        });
         return C;
     }
 
