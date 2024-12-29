@@ -1,3 +1,4 @@
+
 package src;
 
 
@@ -30,9 +31,9 @@ public class MNIST {
             int numTrain = (int) (numTrainingExamples * splitRatio), numTest = numTrainingExamples - numTrain;
             int[] hiddenSizes = {256, 128, 64};
             ActivationFunction[] funcs = {
-                ActivationFunction.LEAKY_RELU,
-                ActivationFunction.LEAKY_RELU,
-                ActivationFunction.LEAKY_RELU,
+                ActivationFunction.RELU,
+                ActivationFunction.RELU,
+                ActivationFunction.RELU,
                 ActivationFunction.SOFTMAX // Output layer activation
             };
 
@@ -67,12 +68,12 @@ public class MNIST {
             MetricsVisualizer.displayConfusionMatrix(confusionMatrix, new String[]{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"});
 
             // Optionally display some images with predictions
-            for (int i = 0; i <= 10 && i < testPredictions.length; i++) {
+            for (int i = 0; i <= 100 && i < testPredictions.length; i++) {
                 double[] image = new double[inputSize];
                 for (int j = 0; j < inputSize; j++) {
                     image[j] = X_test[j][i];
                 }
-                JFrame displayed = MetricsVisualizer.displayImg(image, testPredictions[i]);
+                JFrame displayed = MetricsVisualizer.displayImg(image, nn.predict(image));
                 try {
                     Thread.sleep(1000);
                 } catch (InterruptedException e) {
