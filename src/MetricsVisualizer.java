@@ -5,11 +5,9 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
-import static src.MNIST.width;
-import static src.MNIST.height;
 
 public class MetricsVisualizer extends JFrame {
-    public static JFrame displayImg(double[] image, int prediction) {
+    public static JFrame displayImg(double[] image, int prediction, int width, int height) {
 
         int scale = 10; // Scale factor to make each pixel bigger
         BufferedImage bufferedImage = new BufferedImage(width * scale, height * scale, BufferedImage.TYPE_BYTE_GRAY);

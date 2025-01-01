@@ -73,7 +73,7 @@ public class MNIST {
                 for (int j = 0; j < inputSize; j++) {
                     image[j] = X_test[j][i];
                 }
-                JFrame displayed = MetricsVisualizer.displayImg(image, nn.predict(image));
+                JFrame displayed = MetricsVisualizer.displayImg(image, nn.predict(image), width, height);
                 try {
                     Thread.sleep(1000);
                 } catch (InterruptedException e) {
