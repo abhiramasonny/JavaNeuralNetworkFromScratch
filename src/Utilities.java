@@ -13,16 +13,16 @@ public class Utilities {
 
     public static double computeCost(double[][] Y_hat, double[][] Y) {
         int m = Y[0].length;
-        return IntStream.range(0, Y.length).parallel().mapToDouble(i -> {
-            double cost = 0.0;
-            double[] Y_row = Y[i];
-            double[] Y_hat_row = Y_hat[i];
+        double cost = IntStream.range(0, Y.length).parallel().mapToDouble(i -> {
+            double sum = 0.0;
             for (int j = 0; j < m; j++) {
-                cost -= Y_row[j] * Math.log(Y_hat_row[j] + EPSILON);
+                sum -= Y[i][j] * Math.log(Y_hat[i][j] + EPSILON);
             }
-            return cost;
-        }).sum() / m;
+            return sum;
+        }).sum();
+        return cost / m;
     }
+    
     
     public static double[][] sigmoidDerivative(double[][] Z) {
         double[][] sigmoidZ = sigmoid(Z);
@@ -31,16 +31,15 @@ public class Utilities {
 
     
     public static double[][] sigmoid(double[][] Z) {
-        int m = Z.length;
-        int n = Z[0].length;
-        double[][] A = new double[m][n];
-        IntStream.range(0, m).parallel().forEach(i -> {
-            for (int j = 0; j < n; j++) {
-                A[i][j] = 1.0 / (1.0 + Math.exp(-Z[i][j]));
-            }
-        });
-        return A;
+        return applyFunction(Z, value -> 1.0 / (1.0 + fastExp(-value)));
     }
+    
+    private static double fastExp(double x) {
+        if (x < -50) return 0.0; // Prevent underflow
+        if (x > 50) return Double.MAX_VALUE; // Prevent overflow
+        return Math.exp(x);
+    }
+    
     public static double[][] applyFunction(double[][] matrix, java.util.function.DoubleUnaryOperator func) {
         int m = matrix.length;
         int n = matrix[0].length;
@@ -71,7 +70,7 @@ public class Utilities {
             double[] Z_row = Z[i];
             double[] A_row = A[i];
             for (int j = 0; j < n; j++) {
-                A_row[j] = 1-(2*(1/(1+Math.exp(Z_row[j]*2))));
+                A_row[j] = 1-(2*(1/(1+fastExp(Z_row[j]*2))));
             }
         }
         return A;
@@ -85,7 +84,7 @@ public class Utilities {
             double[] Z_row = Z[i];
             double[] dZ_row = dZ[i];
             for (int j = 0; j < n; j++) {
-                double t = 1-(2*(1/(1+Math.exp(Z_row[j]*2))));
+                double t = 1-(2*(1/(1+fastExp(Z_row[j]*2))));
                 dZ_row[j] = 1.0 - t * t;
             }
         }
@@ -138,7 +137,7 @@ public class Utilities {
             double[] Z_row = Z[i];
             double[] A_row = A[i];
             for (int j = 0; j < n; j++) {
-                A_row[j] = Z_row[j] >= 0 ? Z_row[j] : alpha * (Math.exp(Z_row[j]) - 1);
+                A_row[j] = Z_row[j] >= 0 ? Z_row[j] : alpha * (fastExp(Z_row[j]) - 1);
             }
         });
         return A;
@@ -153,7 +152,7 @@ public class Utilities {
             double[] Z_row = Z[i];
             double[] dZ_row = dZ[i];
             for (int j = 0; j < n; j++) {
-                dZ_row[j] = Z_row[j] >= 0 ? 1.0 : alpha * Math.exp(Z_row[j]);
+                dZ_row[j] = Z_row[j] >= 0 ? 1.0 : alpha * fastExp(Z_row[j]);
             }
         });
         return dZ;
@@ -191,7 +190,7 @@ public class Utilities {
 
             double sumExp = 0.0;
             for (int i = 0; i < m; i++) {
-                A[i][j] = Math.exp(Z[i][j] - max);
+                A[i][j] = fastExp(Z[i][j] - max);
                 sumExp += A[i][j];
             }
 
