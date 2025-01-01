@@ -37,8 +37,10 @@ public class Utilities {
     private static double fastExp(double x) {
         if (x < -50) return 0.0; // Prevent underflow
         if (x > 50) return Double.MAX_VALUE; // Prevent overflow
-        return Math.exp(x);
+        long tmp = (long)(1512775 * x + (1072693248 - 60801));
+        return Double.longBitsToDouble(tmp << 32);
     }
+    
     
     public static double[][] applyFunction(double[][] matrix, java.util.function.DoubleUnaryOperator func) {
         int m = matrix.length;
@@ -179,28 +181,29 @@ public class Utilities {
         int m = Z.length;
         int n = Z[0].length;
         double[][] A = new double[m][n];
-
+    
         for (int j = 0; j < n; j++) {
             double max = Double.NEGATIVE_INFINITY;
-            for (int i = 0; i < m; i++) {
-                if (Z[i][j] > max) {
-                    max = Z[i][j];
-                }
-            }
-
             double sumExp = 0.0;
+    
+            for (int i = 0; i < m; i++) {
+                max = Math.max(max, Z[i][j]);
+            }
+    
             for (int i = 0; i < m; i++) {
                 A[i][j] = fastExp(Z[i][j] - max);
                 sumExp += A[i][j];
             }
-
+    
+            double invSumExp = 1.0 / sumExp;
             for (int i = 0; i < m; i++) {
-                A[i][j] /= sumExp;
+                A[i][j] *= invSumExp;
             }
         }
-
+    
         return A;
     }
+    
 
     public static double[][] multiplyMatrices(double[][] A, double[][] B) {
         int rowsA = A.length;
